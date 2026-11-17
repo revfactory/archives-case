@@ -8,7 +8,7 @@
   // 에이전트마다 맡은 일이 다르다
   DECK.slide({
     id: 'h-roles', title: '에이전트마다 맡은 일이 다르다', chapter: CH,
-    notes: '하네스 안에서 일하는 구성원을 역할로 나누면 여섯 가지다.\n스크립트는 정해진 계산만 한다(문서 추리기, 묶기, 형식 검사). 에이전트는 네 가지 역할로 나뉜다: 만드는 에이전트, 검증하는 에이전트, 갈린 판단을 정하는 에이전트, 보고서를 쓰는 에이전트. 마지막에는 사람이 검토하고 승인한다.\n이 발표의 다섯 하네스에는 에이전트가 모두 18개 있다(3·3·3·4·5). 뒤의 장에서는 이 그림과 색으로 역할을 표시한다. 파랑은 만들기, 빨강은 검증·반박, 주황은 판정·중재, 남색은 보고서다.',
+    notes: '하네스 안에서 일하는 구성원을 역할로 나누면 여섯 가지다.\n스크립트는 정해진 계산만 한다(문서 추리기, 묶기, 형식 검사). 에이전트는 네 가지 역할로 나뉜다: 만드는 에이전트, 검증하는 에이전트, 갈린 판단을 정하는 에이전트, 보고서를 쓰는 에이전트. 마지막에는 사람이 검토하고 승인한다.\n이 발표의 다섯 하네스에는 에이전트가 모두 18개 있다(하네스별로 3·3·3·4·5). 역할로 세면 만드는 에이전트 9개, 검증·반박 5개, 판정·중재 2개, 보고서 2개다. 화면 아래의 작은 그림이 그 18개다. 뒤의 장에서는 이 그림과 색으로 역할을 표시한다. 파랑은 만들기, 빨강은 검증·반박, 주황은 판정·중재, 남색은 보고서다.',
     setup(root, d) {
       d.T = K.title(root, { kicker: '하네스의 구성원', title: '에이전트마다 맡은 일이 다르다' });
       const A = [
@@ -19,17 +19,35 @@
         { kind: 'write', name: '보고서 에이전트', job: '결과를 정리한다' },
         { kind: 'human', name: '사람', job: '검토하고 승인한다' },
       ];
-      const W = 220, GAP = 292, BASE = 690;
+      const SLOT = 220, W = 170, GAP = 292, BASE = 520;
       d.svg = K.svg(root);
       d.act = A.map((a, i) => {
-        const w = a.kind === 'human' ? 172 : W;
-        const x = 120 + i * GAP + (W - w) / 2, y = BASE - w * K.AGR[a.kind];
+        const w = a.kind === 'human' ? 134 : W;
+        const x = 120 + i * GAP + (SLOT - w) / 2, y = BASE - w * K.AGR[a.kind];
         return K.actor(root, { kind: a.kind, name: a.name, job: a.job, x, y, w, jobW: 290 });
       });
-      d.arr = A.slice(0, -1).map((a, i) => K.path(d.svg, [[120 + i * GAP + W + 12, 580], [120 + (i + 1) * GAP - 12, 580]], { color: C.ink2, width: 3, arrow: true }));
-      // 에이전트 네 개를 묶는 줄
-      d.br = K.path(d.svg, [[120 + GAP - 30, 838], [120 + GAP - 30, 858], [120 + 4 * GAP + W + 30, 858], [120 + 4 * GAP + W + 30, 838]], { color: C.blue, width: 3, radius: 10 });
-      d.cap = K.at(root, '', { x: 120 + GAP - 30, y: 884, w: 3 * GAP + W + 60 });
+      d.arr = A.slice(0, -1).map((a, i) => K.path(d.svg, [[120 + i * GAP + SLOT - 8, 430], [120 + (i + 1) * GAP + 8, 430]], { color: C.ink2, width: 3, arrow: true }));
+      // 역할마다 에이전트 수만큼 작은 그림을 놓는다(K.AG 의 18개를 역할로 센다: 9·5·2·2)
+      const SW = 54, ROW = 74, Y0 = 648;
+      d.small = []; d.cnt = [];
+      A.forEach((a, i) => {
+        const n = Object.values(K.AG).filter(g => g.kind === a.kind).length;
+        if (a.kind === 'script' || a.kind === 'human' || !n) return;
+        const cx = 120 + i * GAP + SLOT / 2, per = n > 5 ? 5 : n;
+        for (let k = 0; k < n; k++) {
+          const r = Math.floor(k / per), inRow = Math.min(per, n - r * per), c = k % per;
+          const el = K.at(root, 'actor k-' + a.kind, { x: cx - inRow * SW / 2 + c * SW, y: Y0 + r * ROW + (n > 5 ? 0 : ROW / 2), w: SW });
+          const im = h('img', '', el); im.src = `img/ag_${a.kind}.jpg`; im.alt = '';
+          im.style.width = SW + 'px'; im.style.height = (SW * K.AGR[a.kind]).toFixed(1) + 'px';
+          d.small.push({ el, im, role: i, k });
+        }
+        const t = K.at(root, 'actor k-' + a.kind, { x: cx - 80, y: 800, w: 160 });
+        t.innerHTML = `<div style="font:800 40px/1 var(--display);letter-spacing:-0.02em;color:var(--k-ink)">${n}<span style="font-size:26px">개</span></div>`;
+        d.cnt.push({ el: t, role: i });
+      });
+      // 에이전트 네 역할을 묶는 줄
+      d.br = K.path(d.svg, [[120 + GAP - 30, 852], [120 + GAP - 30, 870], [120 + 4 * GAP + SLOT + 30, 870], [120 + 4 * GAP + SLOT + 30, 852]], { color: C.blue, width: 3, radius: 10 });
+      d.cap = K.at(root, '', { x: 120 + GAP - 30, y: 892, w: 3 * GAP + SLOT + 60 });
       d.cap.style.cssText += ';text-align:center;font:800 46px/1.2 var(--display);letter-spacing:-0.02em;color:var(--ink)';
       d.cap.innerHTML = '다섯 하네스에 에이전트 <span style="color:var(--blue)">18개</span>';
       d.doc = K.doc(root, '문서', { x: 0, y: 0 });
@@ -39,10 +57,17 @@
       d.T.render(lt);
       d.act.forEach((a, i) => a.render(lt, 0.5 + i * 0.16));
       d.arr.forEach((p, i) => K.draw(p, lt, 0.75 + i * 0.16, 0.3));
-      K.draw(d.br, lt, 1.7, 0.5); K.rise(d.cap, lt, 1.9, { y: 14 });
       // 문서 한 장이 왼쪽부터 차례로 지나간다
-      const n = d.act.length, L = K.loop(lt, 2.4, Array(n).fill(1.5));
-      d.act.forEach((a, i) => { if (lt > 2.2) a.act(lt, L.i === i && L.u > 0.3); });
+      const n = d.act.length, L = K.loop(lt, 3.2, Array(n).fill(1.5));
+      // 작은 그림 18개는 등장 뒤 계속 보인다. 지금 일하는 역할의 그림만 조금 올라간다
+      d.small.forEach((m, j) => {
+        const p = prog(lt, 1.5 + j * 0.05, 0.35, ease.pop), on = L.i === m.role && L.u > 0.3;
+        m.el.style.opacity = prog(lt, 1.5 + j * 0.05, 0.15, ease.linear).toFixed(3);
+        m.im.style.transform = `translateY(${(on ? -6 * (0.5 - 0.5 * Math.cos((lt + m.k * 0.08) * Math.PI * 2 / 0.9)) : 0).toFixed(1)}px) scale(${lerp(0.6, 1, p).toFixed(4)})`;
+      });
+      d.cnt.forEach((c, j) => K.pop(c.el, lt, 2.3 + j * 0.1));
+      K.draw(d.br, lt, 2.6, 0.4); K.rise(d.cap, lt, 2.8, { y: 14 });
+      d.act.forEach((a, i) => { if (lt > 3.0) a.act(lt, L.i === i && L.u > 0.3); });
       if (L.i < 0) { d.doc.style.opacity = '0'; return; }
       const from = d.pos[Math.max(0, L.i - 1)], to = d.pos[L.i];
       K.travel(d.doc, L.u, 0, 0.3, L.i === 0 ? [to[0] - 120, to[1]] : from, to, { arc: 26 });
