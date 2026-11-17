@@ -23,6 +23,13 @@ for p in [*sorted((D / 'slides').glob('*.js')), D / 'data' / 'deckdata.js', D / 
     text.update(t)
 text.update(chr(c) for c in range(0x20, 0x7f))
 text.update('·…–—→←↑↓×○●◯▶■□▲▼「」『』‘’“”%₩')
+# 장을 고치는 동안에는 FULL=1 로 상용 한글 2,350자를 모두 넣어 둔다(문구를 바꿀 때마다 다시 만들지 않으려고). 게시 전에는 FULL 없이 다시 만든다.
+import os
+if os.environ.get('FULL'):
+    for hi in range(0xB0, 0xC9):
+        for lo in range(0xA1, 0xFF):
+            try: text.add(bytes([hi, lo]).decode('euc-kr'))
+            except UnicodeDecodeError: pass
 chars = ''.join(sorted(c for c in text if ord(c) >= 0x20))
 (OUT / '_chars.txt').write_text(chars, encoding='utf-8')
 print('글자 수', len(chars))

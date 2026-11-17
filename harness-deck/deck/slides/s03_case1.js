@@ -1,11 +1,11 @@
-/* 조직 변경 영향 — 과제 「조직변경 영향도」. 필름 G 구간에 이어진다. 출처는 storyboard.md 「2. 사례 1」.
-   화면의 숫자·ID·문구는 아래 파일에서 확인했다(경로는 kac-org-change-impact/ 기준).
+/* 조직 변경 영향 — 과제 「조직변경 영향도」. 필름 G 구간에 이어진다.
+   화면의 숫자·이름은 아래 파일에서 확인했다(경로는 kac-org-change-impact/ 기준).
    output/시나리오-신공항건설1부이동/영향도_보고서.md, 분류기준표_변경안.csv, 06_impact_stats.json
    _workspace/시나리오-신공항건설1부이동/00_scenario.md, 02_changes.json, 03_candidates/, 04_proposals/, 05_verify/
    _workspace/_regulations/조직_44~47차.json, index.json, .claude/skills/org-change-impact/SKILL.md */
 (function () {
   'use strict';
-  const { ease, prog, clamp, lerp, h, s } = RH;
+  const { ease, prog, clamp, lerp, h } = RH;
   const C = K.C;
   const CH = '조직 변경 영향 · 조직변경 영향도';
   const P = '조직변경 영향도 · ';
@@ -14,38 +14,30 @@
   const set = RH.set;
   const txt = (parent, box, html, style) => { const e = K.at(parent, '', box, html); if (style) e.style.cssText += ';' + style; return e; };
   const f1 = v => v.toFixed(1);
-
-  // 단위업무 칩의 상태: 기본 → 검토 대상(주황 점선) → 판정(타당 초록 / 수정필요 주황) / 유지(회색)
-  const ST = {
-    idle: ['transparent', '1.5px dashed rgba(27,42,74,.30)', '#3A4A6B'],
-    cand: ['rgba(232,147,12,.13)', '2px dashed #E8930C', '#965A00'],
-    ok: ['#19A974', '2px solid #19A974', '#fff'],
-    warn: ['#E8930C', '2px solid #E8930C', '#fff'],
-    keep: ['rgba(27,42,74,.06)', '1.5px solid rgba(27,42,74,.30)', '#3A4A6B'],
-  };
-  function paint(el, k) {
-    if (el._st === k) return;
-    el._st = k;
-    const v = ST[k];
-    el.style.background = v[0]; el.style.border = v[1]; el.style.color = v[2];
+  const LAB = 'font:700 28px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--mute)';
+  const CAP = 'text-align:center;font:800 42px/1.25 var(--display);letter-spacing:-0.025em;color:var(--ink)';
+  // 보였다 숨기기(매번 opacity·transform 을 직접 정한다)
+  const vis = (el, a, sc) => { const v = clamp(a); el.style.opacity = v.toFixed(3); el.style.transform = `scale(${lerp(sc ?? 0.86, 1, v).toFixed(4)})`; };
+  // 0→1→0 한 번 튀기
+  const bump = u => Math.sin(Math.PI * clamp(u));
+  // K.actor 를 감싼다: 이름표가 그림보다 넓어도 가운데에 오게 하고, 하는 일은 한 줄로 둔다
+  function actor(root, o) {
+    const a = K.actor(root, o);
+    a.el.style.cssText += ';display:flex;flex-direction:column;align-items:center';
+    if (a.job) a.job.style.whiteSpace = 'nowrap';
+    return a;
   }
-  // 칩: 모노 ID + (선택) 상태 글자
-  function uchip(parent, id, o = {}) {
-    const el = h('span', 'chip', parent);
-    el.style.cssText += `;height:${o.h || 40}px;padding:0 ${o.pad ?? 12}px;gap:10px;justify-content:center;flex:none;` + (o.w ? `width:${o.w}px;` : '');
-    const a = h('span', 'mono', el, id); a.style.cssText = `font-size:${o.fs || 20}px;font-weight:500`;
-    if (o.label != null) { el._lab = h('span', '', el, o.label); el._lab.style.cssText = 'font-size:19px;font-weight:700'; }
-    paint(el, o.st || 'idle');
-    return el;
-  }
-  // 상태가 바뀌는 순간 살짝 튀게(1.12 → 1)
-  const bump = (lt, t0) => (lt < t0 || lt > t0 + 0.3 ? 1 : 1 + 0.12 * (1 - ease.outQuad(clamp((lt - t0) / 0.3))));
-  // 범례 한 줄
-  function legend(root, items, box) {
-    const e = K.at(root, '', box);
-    e.style.cssText += ';display:flex;gap:22px;align-items:center;font-size:20px;color:var(--ink-2);white-space:nowrap';
-    e.innerHTML = items.map(([st, t]) => `<span style="display:inline-flex;align-items:center;gap:8px"><i style="width:24px;height:18px;border-radius:4px;box-sizing:border-box;display:inline-block;${st}"></i>${t}</span>`).join('');
-    return e;
+  const kindOf = o => o.kind || K.AG[o.id].kind;
+  // 번호가 붙은 이름표
+  const numName = (n, name) => `<span style="opacity:.55;margin-right:9px">${n}</span>${name}`;
+  // 네 명을 한 줄로 세운다. 그림 아래 끝을 base 에 맞춘다
+  const CX = [330, 750, 1170, 1590];
+  function lineUp(root, defs, base, n0) {
+    return defs.map((a, i) => {
+      const kd = kindOf(a), w = a.w;
+      const nm = a.name || K.AG[a.id].ko;
+      return actor(root, { kind: kd, name: numName(n0 + i, nm), job: a.job, w, x: CX[i] - w / 2, y: base - w * K.AGR[kd] });
+    });
   }
 
   // 14. 챕터 영상
@@ -54,601 +46,570 @@
     notes: '10초 챕터 영상. 필름 G 구간의 작업장(크레인과 부서 블록)이 움직이고, 질문 「조직이 바뀌면 기준표는 어떻게 고치죠?」에 답한다. 조직이 바뀔 때 분류기준표의 어느 단위업무와 기록물철을 고쳐야 하는지 찾는 하네스다(kac-org-change-impact, 에이전트 4개).\n이 챕터는 시나리오 한 건을 입력부터 사람이 정할 질문까지 차례로 따라간다. 끝나면 → 키로 넘긴다.',
   });
 
-  // 15. 과제와 입력
+  // ── 입력 1: 한 문장 → 사건 두 개 ─────────────────────────
   DECK.slide({
-    id: 'c1-input', title: '과제와 입력', chapter: CH, harness: 'orgchange',
-    notes: '하네스는 두 가지 입력을 받는다. 시행세칙 신구 차수를 비교한 결과, 또는 말로 준 조직변경 시나리오다. 이번 입력은 시나리오 한 문장이고, org-change-interpreter가 이를 사건 두 개(E01 상위조직변경, E02 업무이관)로 나눴다.\n왼쪽 아래는 실제 시행세칙 개정 이력이다. 44→45차는 신공항건설부를 1부·2부로 나눴고, 45→46차는 청주공항을 분리해 운영기획부·서비스보안부·시설안전부 3개 부를 새로 만들었다. 46→47차는 정원만 바뀌어 업무분장 변경이 0건이다. 분류기준표가 이 변경을 이미 반영하고 있어 과거 차수를 넣으면 대부분 "유지"로 나오므로, 이번 시험은 시나리오로 했다.\n출처: kac-org-change-impact/_workspace/시나리오-신공항건설1부이동/00_scenario.md, 02_changes.json, _workspace/_regulations/조직_44~47차.json·index.json, unit-task-impact-rules 스킬의 사건 유형 정의',
+    id: 'c1-input', title: '한 문장을 사건 두 개로 나눈다', chapter: CH, harness: 'orgchange',
+    notes: '하네스는 두 가지 입력을 받는다. 시행세칙 신구 차수를 비교한 결과, 또는 말로 준 조직변경 시나리오다. 이번 입력은 시나리오 한 문장이고, 변경 해석 에이전트(org-change-interpreter)가 이 문장을 사건 두 개로 나눴다. E01은 상위조직변경(신공항건설1부의 소속이 부사장직할 신공항추진단에서 건설기술본부 건설사업실로 바뀐다, 확신도 높음), E02는 업무이관(신공항건설1부의 KAC-BIM 사업관리 업무가 스마트공항추진실 데이터융합부로 간다, 확신도 보통)이다. 사건마다 유형, 변경 전·후 부서, 근거 문구, 확신도를 02_changes.json에 적는다.\n실제 시행세칙 개정 이력은 화면에서 뺐다. 44차(2024.12.12)→45차(2025.01.16)는 신공항건설부를 1부·2부로 나눴고, 45차→46차(2025.07.09)는 청주공항을 분리해 운영기획부·서비스보안부·시설안전부 3개 부를 새로 만들었다. 46차→47차(2026.02.11)는 정원만 바뀌어 업무분장 변경이 0건이다. 분류기준표가 이 개정을 이미 반영하고 있어 과거 차수를 넣으면 대부분 "유지"로 나오므로, 이번 시험은 시나리오로 했다.\n출처: kac-org-change-impact/_workspace/시나리오-신공항건설1부이동/00_scenario.md, 02_changes.json, _workspace/_regulations/조직_44~47차.json·index.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: P + '과제와 입력', title: '조직변경 한 문장을 사건 두 개로 나눈다',
-        sub: '입력은 시행세칙 차수 비교나 말로 준 시나리오다. 어느 쪽이든 사건 유형 9가지로 정리한다.' });
+      d.T = K.title(root, { kicker: P + '입력', title: '한 문장을 사건 두 개로 나눈다' });
       d.svg = K.svg(root);
-      // 왼쪽 위: 시나리오 원문(줄을 직접 나눠 사건별 구간을 고정한다)
-      const Q0 = 384, LH = 57.6;
-      d.qLab = txt(root, { x: 120, y: 338 }, '이번 입력 · 시나리오 원문', 'font-size:22px;font-weight:700;color:var(--ink-2)');
-      d.qBar = K.at(root, '', { x: 120, y: Q0 + 6, w: 4, h: 5 * LH - 12 }); d.qBar.style.background = C.ink;
-      d.q = K.at(root, 'quote', { x: 150, y: Q0, w: 740 });
-      d.q.style.fontSize = '36px'; d.q.style.lineHeight = '1.6';
-      const LINES = [[['신공항추진단 ', 0], ['신공항건설1부를', 1]], [['건설사업실 소속으로 옮기고', 1], [',', 0]], [['KAC-BIM 사업관리 업무는', 2]], [['스마트공항추진실 데이터융합부로', 2]], [['이관하면', 2], [' 분류기준표가 어떻게 바뀌나?', 0]]];
+      d.qLab = txt(root, { x: 120, y: 366 }, '입력한 문장', LAB);
+      d.qc = K.at(root, 'card', { x: 120, y: 416, w: 720, h: 460 });
+      d.q = K.at(d.qc, 'quote', { x: 40, y: 38, w: 660 });
+      d.q.style.fontSize = '40px'; d.q.style.lineHeight = '64px';
+      const LINES = [[['신공항추진단 ', 0], ['신공항건설1부를', 1]], [['건설사업실 소속으로 옮기고', 1], [',', 0]], [['KAC-BIM 사업관리 업무는', 2]], [['스마트공항추진실 데이터융합부로', 2]], [['이관하면', 2], [' 분류기준표가', 0]], [['어떻게 바뀌나?', 0]]];
       d.mk = [null, [], []];
       d.lines = LINES.map(parts => {
         const ln = h('div', '', d.q); ln.style.whiteSpace = 'nowrap';
         parts.forEach(([t, g]) => {
           const sp = h('span', '', ln); sp.textContent = t;
-          if (g) { sp.style.cssText = 'background-repeat:no-repeat;background-position:0 92%;background-size:0% 34%'; d.mk[g].push(sp); }
+          if (g) { sp.style.cssText = 'background-repeat:no-repeat;background-position:0 92%;background-size:0% 36%'; d.mk[g].push(sp); }
         });
         return ln;
       });
-      // 사건 구간 괄호와 꼬리표
-      const brk = (y1, y2) => K.path(d.svg, [[896, y1], [906, y1], [906, y2], [896, y2]], { color: C.blue, width: 2.5, radius: 4 });
-      d.br = [brk(Q0 + 10, Q0 + 2 * LH - 10), brk(Q0 + 2 * LH + 10, Q0 + 5 * LH - 10)];
-      const cy = [Q0 + LH, Q0 + 3.5 * LH];
-      d.tags = ['E01', 'E02'].map((t, i) => { const c = K.chip(root, t, 'blue', { x: 918, y: cy[i] - 20 }); c.classList.add('mono'); return c; });
-      // 오른쪽: 사건 유형 9가지
-      const TYPES = [['부서신설', '없던 부서가 생김'], ['부서폐지', '부서가 없어지고 업무도 없어짐'], ['부서통합', '둘 이상의 부서가 하나가 됨'], ['부서분리', '한 부서가 둘 이상으로 나뉨'], ['명칭변경', '업무는 같고 이름만 바뀜'],
-        ['상위조직변경', '부서는 같고 소속 본부·실·단만 바뀜'], ['업무이관', '부서는 그대로, 일부 업무만 다른 부서로'], ['업무신설', '기존 부서에 새 업무가 추가됨'], ['업무폐지', '업무가 삭제되고 받는 부서가 없음']];
-      d.tLab = txt(root, { x: 1120, y: 338 }, '사건 유형 9가지', 'font-size:22px;font-weight:700;color:var(--ink-2)');
-      d.types = TYPES.map((t, i) => {
-        const y = 384 + i * 56;
-        const r = K.at(root, '', { x: 1120, y, w: 680, h: 48 });
-        r.style.cssText += ';border-radius:8px;display:flex;align-items:center';
-        const bar = K.at(r, '', { x: 0, y: 8, w: 5, h: 32 }); bar.style.cssText += ';background:var(--blue);border-radius:3px;opacity:0';
-        const nm = h('span', '', r, t[0]); nm.style.cssText = 'font-size:24px;font-weight:800;letter-spacing:-0.02em;width:200px;padding-left:22px;flex:none;box-sizing:border-box';
-        const ds = h('span', '', r, t[1]); ds.style.cssText = 'font-size:21px;color:var(--ink-2)';
-        const ln = K.at(root, '', { x: 1120, y: y + 51, w: 680, h: 1.5 }); ln.style.background = 'var(--rule)';
-        return { r, bar, nm, ln };
-      });
-      d.tNote = txt(root, { x: 1120, y: 904, w: 680 }, '사건마다 유형, 변경 전·후 부서, 근거 문구, 확신도를 <span class="mono" style="font-size:19px;color:var(--ink-2)">02_changes.json</span>에 적는다.', 'font-size:20px;line-height:1.5;color:var(--mute)');
-      // 원문 구간 → 유형 행 연결선
-      d.cn = [[cy[0], 5], [cy[1], 6]].map(([y, r]) => {
-        const ry = 384 + r * 56 + 24;
-        const p = K.path(d.svg, `M 990 ${y} C 1058 ${y}, 1052 ${ry}, 1118 ${ry}`, { color: C.blue, width: 2.5 });
-        K.dots(d.svg, p, 2, { r: 5 });
-        return p;
-      });
-      // 왼쪽 아래: 실제 직제 개정 이력
-      d.hLab = txt(root, { x: 120, y: 712 }, '실제 직제 개정 이력 · 시행세칙', 'font-size:22px;font-weight:700;color:var(--ink-2)');
-      const NX = [175, 440, 705, 970];
-      d.tl = K.at(root, '', { x: 175, y: 799, w: 795, h: 3 }); d.tl.style.background = 'rgba(27,42,74,.35)';
-      const VER = [['44차', '2024.12.12'], ['45차', '2025.01.16'], ['46차', '2025.07.09'], ['47차', '2026.02.11']];
-      d.ver = VER.map((v, i) => {
-        const dot = K.at(root, '', { x: NX[i] - 10, y: 790, w: 20, h: 20 });
-        dot.style.cssText += ';border-radius:50%;background:var(--paper);border:3px solid var(--ink);box-sizing:border-box';
-        const a = txt(root, { x: NX[i] - 60, y: 750, w: 120 }, v[0], 'font-size:22px;font-weight:700;text-align:center');
-        a.classList.add('mono');
-        const b = txt(root, { x: NX[i] - 70, y: 818, w: 140 }, v[1], 'font-size:20px;color:var(--mute);text-align:center');
-        return { dot, a, b };
-      });
-      const SEG = [['부서분리', '신공항건설부 → 1부·2부', 3], ['부서신설', '청주공항 분리 · 3개 부', 0], ['사건 없음', '정원만 변경', -1]];
-      d.seg = SEG.map((sg, i) => {
-        const mx = (NX[i] + NX[i + 1]) / 2;
-        const g = K.at(root, '', { x: mx - 130, y: 858, w: 260 }); g.style.textAlign = 'center';
-        const c = h('span', sg[2] < 0 ? 'chip ghost' : 'chip id', g, sg[0]);
-        c.style.cssText += ';height:36px;font-size:20px;font-family:var(--sans);font-weight:700';
-        const t = h('div', '', g, sg[1]); t.style.cssText = 'font-size:20px;color:var(--ink-2);margin-top:8px;white-space:nowrap';
-        return { g, c, base: c.className };
-      });
-      d.cap = txt(root, { x: 120, y: 952, w: 880 }, '분류기준표가 이 개정을 이미 반영하고 있어, 이번 사례는 시나리오로 입력했다.', 'font-size:20px;color:var(--mute)');
-    },
-    render(lt, d) {
-      d.T.render(lt);
-      K.rise(d.qLab, lt, 0.35, { y: 10 });
-      K.wipe(d.qBar, lt, 0.4, 0.5, 'down');
-      d.lines.forEach((ln, i) => K.rise(ln, lt, 0.45 + i * 0.08, { y: 14, blur: 4 }));
-      K.rise(d.tLab, lt, 0.5, { y: 10 });
-      d.types.forEach((t, i) => { K.rise(t.r, lt, 0.55 + i * 0.05, { x: 24, y: 0 }); K.wipe(t.ln, lt, 0.6 + i * 0.05, 0.5); });
-      K.rise(d.tNote, lt, 1.2, { y: 8 });
-      K.rise(d.hLab, lt, 0.9, { y: 10 });
-      K.wipe(d.tl, lt, 1.0, 0.8);
-      d.ver.forEach((v, i) => { K.pop(v.dot, lt, 1.05 + i * 0.12); K.rise(v.a, lt, 1.05 + i * 0.12, { y: 8 }); K.rise(v.b, lt, 1.1 + i * 0.12, { y: 8 }); });
-      d.seg.forEach((sg, i) => K.rise(sg.g, lt, 1.3 + i * 0.12, { y: 10 }));
-      K.rise(d.cap, lt, 1.7, { y: 8 });
-      // 사건 표시: 밑줄 → 괄호 → 꼬리표 → 연결선. 그 뒤 네 가지 대응을 돌아가며 강조
-      const k = K.cycle(lt, 3.9, 2.4, 4);
-      const strongRow = [5, 6, 3, 0][k] ?? -1;
-      const lit = [false, false];
-      [0, 1].forEach(e => {
-        const t0 = 1.5 + e * 0.8;
-        const spans = d.mk[e + 1];
-        const act = k === e;
-        spans.forEach((sp, j) => {
-          const p = prog(lt, t0 + j * 0.22, 0.3, ease.inOutCubic);
-          sp.style.backgroundSize = `${f1(p * 100)}% 34%`;
-          const a = act ? 'rgba(47,123,255,.36)' : 'rgba(47,123,255,.18)';
-          set(sp, 'backgroundImage', `linear-gradient(${a}, ${a})`);
-        });
-        const tEnd = t0 + spans.length * 0.22 + 0.1;
-        K.draw(d.br[e], lt, tEnd - 0.2, 0.3);
-        K.pop(d.tags[e], lt, tEnd);
-        K.draw(d.cn[e], lt, tEnd + 0.15, 0.5, { speed: 160 });
-        d.cn[e].setAttribute('stroke-width', act ? 4 : 2.5);
-        lit[e] = lt > tEnd + 0.6;
-      });
-      d.types.forEach((t, i) => {
-        const on = (i === 5 && lit[0]) || (i === 6 && lit[1]);
-        const st = i === strongRow;
-        set(t.r, 'background', st ? 'rgba(47,123,255,.12)' : on ? 'rgba(47,123,255,.05)' : 'transparent');
-        set(t.bar, 'opacity', st || on ? '1' : '0');
-        set(t.nm, 'color', st || on ? C.blue : C.ink);
-      });
-      d.seg.forEach((sg, i) => { const cls = k === i + 2 ? 'chip blue' : sg.base; if (sg.c.className !== cls) sg.c.className = cls; });
-    },
-  });
-
-  // 16. 파이프라인
-  const FLOW = [
-    { kind: 'script', name: 'prepare.py', read: [['t', '시행세칙 44~47차 · 직제규정 39~41차 hwpx']], write: [['f', '_regulations/조직_47차.json'], ['t', '외']] },
-    { kind: 'make', name: 'org-change-interpreter', model: 'opus', read: [['f', '00_scenario.md'], ['f', '조직_47차.json']], write: [['f', '02_changes.json'], ['n', '사건 2 · 확인필요 4']] },
-    { kind: 'human', name: '사용자 확인', read: [['f', '02_changes.json'], ['t', '사건 표 · 확인필요 질문 4개']], write: [['t', '확인 · 고칠 곳은 2단계를 다시 부른다']] },
-    { kind: 'script', name: 'impact_lookup.py', read: [['f', '02_changes.json']], write: [['f', '03_candidates/E01.json'], ['f', 'E02.json']] },
-    { kind: 'make', name: 'unit-impact-analyst', model: 'opus', read: [['f', '03_candidates/E01.json']], write: [['f', '04_proposals/E01.json']] },
-    { kind: 'check', name: 'change-proposal-verifier', model: 'opus', read: [['f', '04_proposals/E01.json'], ['f', '03_candidates/']], write: [['f', '05_verify/E01.json']] },
-    { kind: 'script', name: 'build_change_table.py', read: [['f', '04_proposals/'], ['f', '05_verify/']], write: [['f', '분류기준표_변경안.csv'], ['f', '06_impact_stats.json']] },
-    { kind: 'write', name: 'impact-report-writer', model: 'sonnet', read: [['f', '06_impact_stats.json'], ['f', '분류기준표_변경안.csv']], write: [['f', '영향도_보고서.md']] },
-  ];
-  // 넘겨주는 파일: [보내는 단계, 칸 순번, 받는 단계, 읽는 칸 순번, 이름, 보내는 칸이 읽는 칸이면 true]
-  const HAND = [[0, 0, 1, 1, '조직_47차.json'], [1, 0, 2, 0, '02_changes.json'], [2, 0, 3, 0, '02_changes.json', true], [3, 0, 4, 0, '03_candidates/E01.json'],
-    [4, 0, 5, 0, '04_proposals/E01.json'], [5, 0, 6, 1, '05_verify/E01.json'], [6, 1, 7, 0, '06_impact_stats.json'], [7, 0, -1, -1, '영향도_보고서.md']];
-  DECK.slide({
-    id: 'c1-flow', title: '파이프라인', chapter: CH, harness: 'orgchange',
-    notes: '실제 실행 순서다. 점선 칸은 결정적으로 처리하는 스크립트, 실선 칸은 판단하는 에이전트다. 2단계가 끝나면 사건 표와 확인필요 질문을 사람에게 보여 주고 확인을 받는다. 사건 해석이 틀리면 뒤 단계가 모두 틀리기 때문이다.\n5·6단계는 사건마다(E01, E02) 분석 → 검증을 한 번씩 돈다. 에이전트는 쓴 파일을 validate.py로 검사해 OK를 확인한다. 검증 담당(change-proposal-verifier)에는 Edit 도구를 주지 않아 제안 파일을 고칠 수 없다.\n화면의 파일 경로는 앞부분 _workspace/시나리오-신공항건설1부이동/ 을 줄였다. 7·8단계의 결과는 output/시나리오-신공항건설1부이동/ 에 놓인다. 움직이는 칩은 한 단계가 쓴 파일을 다음 단계가 읽는 순서를 보여 준다.\n출처: kac-org-change-impact/.claude/skills/org-change-impact/SKILL.md 「데이터 전달」, .claude/agents/*.md, _workspace/.../03_candidates/_summary.json',
-    setup(root, d) {
-      d.T = K.title(root, { kicker: P + '파이프라인', title: '단계마다 파일을 읽고, 파일을 쓴다' });
-      d.leg = legend(root, [['border:2px dashed rgba(27,42,74,.4)', '스크립트'], ['border:2px solid var(--blue);background:var(--paper-3)', '에이전트'], ['background:var(--ink);border-radius:9px', '사람']], { r: 120, y: 240 });
-      d.hd = [['단계', 180], ['읽는 파일', 680], ['쓰는 파일', 1270]].map(([t, x]) => txt(root, { x, y: 284 }, t, 'font-size:20px;font-weight:700;color:var(--mute)'));
-      d.hr = K.at(root, '', { x: 120, y: 316, w: 1680, h: 2 }); d.hr.style.background = C.ink;
-      const RY = i => 334 + i * 80;
-      // 사건마다 도는 구간(5·6단계)
-      d.grp = K.at(root, '', { x: 170, y: RY(4) - 9, w: 1630, h: 80 + 58 + 18 });
-      d.grp.style.cssText += ';border:2px dashed rgba(47,123,255,.45);border-radius:16px;box-sizing:border-box;background:rgba(47,123,255,.03)';
-      d.tab = K.at(root, '', { r: 136, y: RY(4) - 24, h: 30 }, '사건마다 한 번씩 · E01, E02');
-      d.tab.style.cssText += ';display:flex;align-items:center;padding:0 12px;font-size:19px;font-weight:700;color:var(--blue);background:var(--paper);border:2px solid rgba(47,123,255,.45);border-radius:8px;box-sizing:border-box';
-      d.svg = K.svg(root);
-      d.chain = K.path(d.svg, [[150, RY(0) + 29], [150, RY(7) + 29]], { color: 'rgba(27,42,74,.28)', width: 2.5 });
-      K.dots(d.svg, d.chain, 4, { r: 5 });
-      const NAMECOL = { make: '#1F5FD6', check: '#B3261E', write: C.ink2 }, BORD = { make: C.blue, check: C.bad, write: C.ink2 };
-      d.rows = FLOW.map((r, i) => {
-        const y = RY(i);
-        const num = K.at(root, 'mono', { x: 133, y: y + 12, w: 34, h: 34 }, String(i + 1));
-        num.style.cssText += ';border-radius:50%;background:var(--paper);border:2px solid var(--ink-2);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700';
-        let node;
-        if (r.kind === 'script') {
-          node = K.at(root, 'script', { x: 180, y, w: 460, h: 58 }, r.name);
-          node.style.cssText += ';display:flex;align-items:center;font-size:21px;padding:0 18px;background:var(--paper)';
-        } else if (r.kind === 'human') {
-          node = K.at(root, 'human', { x: 180, y, w: 460, h: 58 }, r.name);
-          node.style.cssText += ';display:flex;align-items:center;padding:0 22px;font-size:23px';
-        } else {
-          node = K.at(root, '', { x: 180, y, w: 460, h: 58 });
-          node.style.cssText += `;box-sizing:border-box;border-radius:12px;background:var(--paper-3);border:2px solid ${BORD[r.kind]};display:flex;align-items:center;padding:0 12px 0 18px;box-shadow:0 14px 30px -22px ${BORD[r.kind]}`;
-          const nm = h('span', 'mono', node, r.name); nm.style.cssText = `font-size:21px;font-weight:500;color:${NAMECOL[r.kind]}`;
-          const md = h('span', 'mono', node, r.model);
-          md.style.cssText = 'margin-left:auto;font-size:19px;font-weight:700;padding:3px 9px;border-radius:5px;' + (r.model === 'opus' ? 'background:var(--ink);color:#fff' : 'border:1.5px solid var(--ink-2);color:var(--ink-2)');
-        }
-        const cell = (x, w, items) => {
-          const c = K.at(root, '', { x, y: y + 11, w, h: 36 });
-          c.style.cssText += ';display:flex;gap:8px;align-items:center;white-space:nowrap';
-          const chips = items.map(([kd, t]) => {
-            if (kd === 'f') { const e = h('span', 'chip id', c, t); e.style.cssText += ';height:36px;font-size:20px;padding:0 10px'; return e; }
-            const e = h('span', '', c, t);
-            e.style.cssText = kd === 'n' ? 'font-size:20px;font-weight:700;color:var(--blue);margin-left:6px' : 'font-size:21px;color:var(--ink-2)';
-            return e;
-          });
-          return { c, chips, x };
-        };
-        return { y, num, node, rd: cell(680, 560, r.read), wr: cell(1270, 530, r.write), ring: 'none' };
-      });
-      // 다음 단계로 넘어가는 파일 칩
-      d.tok = K.at(root, 'chip id', { x: 0, y: 0 }, '');
-      d.tok.style.cssText += ';height:36px;font-size:20px;padding:0 10px;border:2px solid var(--blue);color:var(--blue-2);box-shadow:0 12px 26px -12px rgba(47,123,255,.6);opacity:0;z-index:5';
-    },
-    render(lt, d) {
-      d.T.render(lt);
-      K.rise(d.leg, lt, 0.5, { y: 8 });
-      d.hd.forEach((e, i) => K.rise(e, lt, 0.35 + i * 0.05, { y: 8 }));
-      K.wipe(d.hr, lt, 0.35, 0.6);
-      K.draw(d.chain, lt, 0.5, 1.1, { speed: 120, ease: ease.linear });
-      d.rows.forEach((r, i) => {
-        const t0 = 0.5 + i * 0.12;
-        K.pop(r.num, lt, t0);
-        K.rise(r.node, lt, t0 + 0.04, { x: -24, y: 0 });
-        K.rise(r.rd.c, lt, t0 + 0.1, { x: -16, y: 0 });
-        K.rise(r.wr.c, lt, t0 + 0.16, { x: -16, y: 0 });
-      });
-      K.rise(d.grp, lt, 1.45, { y: 0, scale: 0.985, blur: 0 });
-      K.pop(d.tab, lt, 1.65);
-      // 파일 넘김: 1.5초마다 한 단계씩
-      const T0 = 2.6, PER = 1.5;
-      const k = K.cycle(lt, T0, PER, HAND.length);
-      const u = k < 0 ? -1 : (lt - T0) % PER;
-      const hd = k >= 0 ? HAND[k] : null;
-      const srcChip = hd ? (hd[5] ? d.rows[hd[0]].rd : d.rows[hd[0]].wr).chips[hd[1]] : null;
-      d.rows.forEach((r, i) => {
-        const send = hd && hd[0] === i && u < 0.45;
-        const recv = hd && hd[2] === i && u > 0.95;
-        const last = hd && hd[2] < 0 && hd[0] === i;
-        set(r.node, 'outline', send || recv || last ? '4px solid rgba(47,123,255,.22)' : 'none');
-        set(r.node, 'outlineOffset', '3px');
-        r.wr.chips.concat(r.rd.chips).forEach(c => set(c, 'outline', c === srcChip && u < 1.0 ? '3px solid rgba(47,123,255,.45)' : 'none'));
-        r.rd.chips.forEach((c, j) => {
-          const on = hd && hd[2] === i && hd[3] === j && u > 0.95;
-          set(c, 'background', on ? (c.classList.contains('chip') ? 'rgba(47,123,255,.12)' : 'transparent') : '');
-          set(c, 'color', on ? C.blue : '');
-        });
-      });
-      if (!hd || hd[2] < 0) { set(d.tok, 'opacity', '0'); return; }
-      const src = hd[5] ? d.rows[hd[0]].rd : d.rows[hd[0]].wr, dst = d.rows[hd[2]].rd;
-      const sc = src.chips[hd[1]], dc = dst.chips[hd[3]];
-      const sx = src.x + sc.offsetLeft, sy = d.rows[hd[0]].y + 11;
-      const dx = dst.x + dc.offsetLeft, dy = d.rows[hd[2]].y + 11;
-      if (d.tok.textContent !== hd[4]) d.tok.textContent = hd[4];
-      const p = prog(u, 0.25, 0.7, ease.inOutCubic);
-      const x = lerp(sx, dx, p), y = lerp(sy, dy, p) - 34 * Math.sin(Math.PI * p);
-      d.tok.style.left = f1(x) + 'px'; d.tok.style.top = f1(y) + 'px';
-      const a = Math.min(prog(u, 0.12, 0.15, ease.linear), 1 - prog(u, 1.0, 0.2, ease.linear));
-      d.tok.style.opacity = a.toFixed(3);
-      d.tok.style.transform = `scale(${(1 + 0.06 * Math.sin(Math.PI * p)).toFixed(4)})`;
-    },
-  });
-
-  // 17. 사건 해석 — 조직도에서 부서와 업무가 옮겨 붙는다
-  const KX = c => c + 48, KY = i => 410 + i * 64;    // 하위 부서 칸 좌표
-  DECK.slide({
-    id: 'c1-events', title: '사건 해석', chapter: CH, harness: 'orgchange',
-    notes: 'E01은 상위조직변경이다. 신공항건설1부의 소속만 부사장직할 신공항추진단에서 건설기술본부 건설사업실로 바뀐다(확신도 높음). 분류기준표에서 영향을 받는 단위업무는 U0087(철 F0164)과 1부·2부 공동 행인 U0086이다.\nE02는 업무이관이다. 세칙 47차에서 KAC-BIM 사업관리는 신공항건설1부 업무분장 5호인데, 분류기준표의 BIM 단위업무 8개(U0078~U0085)는 세칙에 없는 디지털트윈사업부 아래에 있다. 이관 범위와 디지털트윈사업부 처리가 시나리오에 없어 확신도를 보통으로 뒀다.\n아래 칩의 색: 주황 점선은 검토 대상, 초록은 검증 타당, 주황은 검증 수정필요다. 분석은 U0079만 옮기고 나머지 7개를 "유지"로 뒀는데, 검증이 7개 모두 수정필요로 판정했다.\n문서 6,873건은 신공항추진단 전체의 2021~2026년 생산·접수 문서 수다. 문서목록에 부·단위업무 칸이 없어 1부만의 건수는 낼 수 없다.\n조직도는 세칙 47차(조직_47차.json) 기준이고, 점선 칸 디지털트윈사업부만 분류기준표에서 가져왔다.\n출처: _workspace/.../02_changes.json, 04_proposals·05_verify/E01·E02.json, output/.../06_impact_stats.json',
-    setup(root, d) {
-      d.T = K.title(root, { kicker: P + '사건 해석', title: '부서 하나가 옮기고, 업무 하나가 따로 간다' });
-      d.leg = legend(root, [['border:2px dashed rgba(27,42,74,.4);background:var(--paper-3)', '분류기준표에만 있는 부서'], ['border:2px dashed #E8930C;background:rgba(232,147,12,.13)', '검토 대상'], ['background:#19A974', '타당'], ['background:#E8930C', '수정필요']], { r: 120, y: 244 });
-      d.svg = K.svg(root);
-      const COLS = [
-        { x: 120, top: '부사장직할', name: '신공항추진단', kids: ['신공항계획부', '신공항건설1부', '신공항건설2부', '디지털트윈사업부'] },
-        { x: 700, top: '건설기술본부', name: '건설사업실', kids: ['공항계획부', '건설안전부'] },
-        { x: 1280, top: '전략기획본부', name: '스마트공항추진실', kids: ['스마트기획부', '데이터융합부', '스마트공항부'] },
-      ];
-      d.cols = COLS.map(c => {
-        const top = txt(root, { x: c.x, y: 292 }, c.top, 'font-size:20px;font-weight:600;color:var(--mute)');
-        const par = K.at(root, '', { x: c.x, y: 324, w: 400, h: 60 }, c.name);
-        par.style.cssText += ';box-sizing:border-box;border-radius:12px;background:var(--ink);color:#FDF3E2;display:flex;align-items:center;padding:0 22px;font-size:28px;font-weight:800;letter-spacing:-0.02em';
-        const spine = K.at(root, '', { x: c.x + 21, y: 384, w: 2.5, h: KY(c.kids.length - 1) + 26 - 384 });
-        spine.style.background = 'rgba(27,42,74,.38)';
-        const kids = c.kids.map((nm, i) => {
-          const x = KX(c.x), y = KY(i), dash = nm === '디지털트윈사업부';
-          const tick = K.at(root, '', { x: c.x + 22, y: y + 25, w: 26, h: 2.5 }); tick.style.background = 'rgba(27,42,74,.38)';
-          const n = K.at(root, '', { x, y, w: 420, h: 52 }, nm);
-          n.style.cssText += `;box-sizing:border-box;border-radius:10px;background:var(--paper-3);border:${dash ? '2px dashed rgba(27,42,74,.38)' : '1.5px solid var(--rule-2)'};display:flex;align-items:center;padding:0 18px;font-size:24px;font-weight:700;letter-spacing:-0.02em;color:${dash ? 'var(--ink-2)' : 'var(--ink)'}`;
-          return { n, tick, x, y };
-        });
-        return { top, par, spine, kids, x: c.x };
-      });
-      const A = d.cols[0], B = d.cols[1], Cc = d.cols[2];
-      d.n1 = A.kids[1];                         // 신공항건설1부
-      d.dt = A.kids[3];                         // 디지털트윈사업부
-      d.df = Cc.kids[1];                        // 데이터융합부
-      d.spB0 = KY(1) + 26 - 384; d.spB1 = KY(2) + 26 - 384;
-      // 1부가 떠난 자리
-      d.ghost = K.at(root, '', { x: d.n1.x, y: d.n1.y, w: 420, h: 52 }, '신공항건설1부');
-      d.ghost.style.cssText += ';box-sizing:border-box;border-radius:10px;border:2px dashed rgba(47,123,255,.35);display:flex;align-items:center;padding:0 18px;font-size:24px;font-weight:700;color:rgba(47,123,255,.35);opacity:0';
-      root.insertBefore(d.ghost, d.n1.n);
-      // 건설사업실 아래 새 연결
-      d.tickB = K.at(root, '', { x: B.x + 22, y: KY(2) + 25, w: 26, h: 2.5 }); d.tickB.style.background = 'rgba(27,42,74,.38)';
-      // 디지털트윈사업부의 BIM 단위업무 묶음
-      d.bim = K.at(root, 'chip', { x: d.dt.x + 420 - 12 - 172, y: d.dt.y + 8, w: 172, h: 36 }, 'BIM 단위업무 8');
-      d.bim.style.cssText += ';justify-content:center;font-size:20px;padding:0';
-      paint(d.bim, 'idle');
-      // KAC-BIM 사업관리(1부 업무분장 5호) 칩
-      d.kacOff = [420 - 12 - 196, 8];
-      d.kacGhost = K.at(root, 'chip', { x: KX(B.x) + d.kacOff[0], y: KY(2) + d.kacOff[1], w: 196, h: 36 }, 'KAC-BIM 사업관리');
-      d.kacGhost.style.cssText += ';justify-content:center;font-size:20px;padding:0;border:2px dashed rgba(47,123,255,.35);color:rgba(47,123,255,.4);opacity:0;z-index:4';
-      d.kac = K.at(root, 'chip', { x: 0, y: 0, w: 196, h: 36 }, 'KAC-BIM 사업관리');
-      d.kac.style.cssText += ';justify-content:center;font-size:20px;padding:0;z-index:4';
-      // 이동 경로(이동이 끝난 뒤 남는 점선과 점 흐름)
-      d.tr = [
-        K.path(d.svg, `M 590 ${KY(1) + 26} C 656 ${KY(1) + 26}, 656 ${KY(2) + 26}, 720 ${KY(2) + 26}`, { color: C.blue, width: 2.5, dash: '7 7' }),
-        K.path(d.svg, `M 1170 ${KY(2) + 26} C 1236 ${KY(2) + 26}, 1236 ${KY(1) + 26}, 1300 ${KY(1) + 26}`, { color: C.blue, width: 2.5, dash: '7 7' }),
-      ];
-      d.tr.forEach(p => K.dots(d.svg, p, 2, { r: 5 }));
-      d.pill = [[655, 'E01'], [1235, 'E02']].map(([x, t]) => {
-        const c = K.chip(root, t, 'blue', { x: x - 28, y: KY(1) + 26 + 32 - 16, w: 56, h: 32 });
-        c.classList.add('mono'); c.style.cssText += ';height:32px;font-size:19px;padding:0;justify-content:center';
+      d.ag = actor(root, { id: 'org-change-interpreter', job: '문장을 읽고 나눈다', x: 905, y: 490, w: 240 });
+      d.eLab = txt(root, { x: 1210, y: 366 }, '사건 두 개', LAB);
+      const EV = [['E01', '상위조직변경', '부서의 소속이 바뀐다'], ['E02', '업무이관', '업무 하나가 다른 부서로 간다']];
+      d.cards = EV.map((e, i) => {
+        const c = K.at(root, 'card', { x: 1210, y: 416 + i * 245, w: 590, h: 215 });
+        const id = K.chip(c, e[0], 'blue lg', { x: 32, y: 28 }); id.classList.add('mono');
+        txt(c, { x: 32, y: 92 }, e[1], 'font:900 48px/1.15 var(--display);letter-spacing:-0.03em;white-space:nowrap');
+        txt(c, { x: 32, y: 158 }, e[2], 'font:600 28px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap');
         return c;
       });
-      // 사건 카드
-      const EV = [
-        { id: 'E01', type: '상위조직변경', conf: '높음', sum: '신공항건설1부 소속을 신공항추진단에서 건설사업실로', n1: 'U0086은 1부·2부 공동 행이라 철 F0162만 옮기는 안을 냈다', n2: '신공항추진단 생산·접수 문서 6,873건(2021~2026)' },
-        { id: 'E02', type: '업무이관', conf: '보통', sum: 'KAC-BIM 사업관리를 스마트공항추진실 데이터융합부로', n1: 'BIM 단위업무 8개는 분류기준표에서 디지털트윈사업부 아래에 있다', n2: '분석은 U0079만 옮기고 7개는 유지, 검증은 7개 모두 수정필요' },
-      ];
-      d.cards = EV.map((ev, i) => {
-        const c = K.at(root, 'card', { x: 120 + i * 860, y: 704, w: 820, h: 274 });
-        const id = K.chip(c, ev.id, 'blue', { x: 28, y: 22 }); id.classList.add('mono');
-        txt(c, { x: 108, y: 22 }, ev.type, 'font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:40px');
-        const cf = K.chip(c, '확신도 ' + ev.conf, ev.conf === '높음' ? 'blue' : 'id', { r: 28, y: 22 });
-        if (ev.conf !== '높음') cf.style.cssText += ';font-family:var(--sans);font-weight:700;color:var(--blue-2);border:2px solid var(--blue)';
-        txt(c, { x: 28, y: 80, w: 764 }, ev.sum, 'font-size:23px;font-weight:600;color:var(--ink)');
-        const row = K.at(c, '', { x: 28, y: 124, w: 764, h: 40 }); row.style.cssText += ';display:flex;gap:6px;align-items:center';
-        txt(c, { x: 28, y: 182, w: 764 }, ev.n1, 'font-size:20px;color:var(--ink-2)');
-        txt(c, { x: 28, y: 216, w: 764 }, ev.n2, 'font-size:20px;color:var(--mute)');
-        return { c, row };
+      d.p0 = K.path(d.svg, [[850, 646], [898, 646]], { color: C.ink2, width: 4, arrow: true });
+      d.ps = [523, 768].map(y => K.path(d.svg, `M 1152 646 C 1184 646, 1172 ${y}, 1200 ${y}`, { color: C.blue, width: 4, arrow: true }));
+      // 문장에서 떼어 낸 조각
+      d.frag = ['신공항건설1부를 건설사업실로', 'KAC-BIM 업무는 데이터융합부로'].map(t => {
+        const e = K.doc(root, t, { x: 0, y: 0, w: 400 }); e.style.textAlign = 'center'; e.style.opacity = '0'; return e;
       });
-      // 단위업무 칩: [ID, 검토 대상 시각, 판정 시각, 판정]
-      d.u1 = [['U0087', 'ok'], ['U0086', 'warn']].map(([id, v]) => ({ el: uchip(d.cards[0].row, id, { label: '', w: 200 }), v }));
-      d.u2 = [{ el: uchip(d.cards[1].row, 'U0079', { label: '', w: 200 }), v: 'ok' }];
-      ['U0078', 'U0080', 'U0081', 'U0082', 'U0083', 'U0084', 'U0085'].forEach(id => d.u2.push({ el: uchip(d.cards[1].row, id, { w: 73, pad: 0, fs: 19 }), v: 'warn' }));
-      d.u2[0].el.style.marginRight = '8px';
+      d.from = [[280, 474], [280, 634]]; d.to = [d.ag.cx - 200, d.ag.top - 66];
     },
     render(lt, d) {
       d.T.render(lt);
-      K.rise(d.leg, lt, 0.6, { y: 8 });
-      const E1 = { hl: 1.7, mv: 2.0, land: 3.0 }, E2 = { hl: 4.2, mv: 4.5, land: 5.4 };
-      // 조직도 등장
-      d.cols.forEach((c, ci) => {
-        const t0 = 0.35 + ci * 0.1;
-        K.rise(c.top, lt, t0, { y: 8 });
-        K.pop(c.par, lt, t0 + 0.05);
-        K.wipe(c.spine, lt, t0 + 0.3, 0.5, 'down');
-        c.kids.forEach((kd, i) => {
-          K.wipe(kd.tick, lt, t0 + 0.4 + i * 0.07, 0.25);
-          if (kd !== d.n1 || lt < E1.mv) K.rise(kd.n, lt, t0 + 0.42 + i * 0.07, { x: -18, y: 0 });
+      K.rise(d.qLab, lt, 0.35, { y: 10 }); K.rise(d.qc, lt, 0.4, { y: 20 });
+      d.lines.forEach((ln, i) => K.rise(ln, lt, 0.5 + i * 0.07, { y: 14, blur: 4 }));
+      d.ag.render(lt, 0.9);
+      K.draw(d.p0, lt, 1.1, 0.3);
+      K.rise(d.eLab, lt, 1.2, { y: 10 });
+      d.cards.forEach((c, i) => K.pop(c, lt, 1.35 + i * 0.18));
+      d.ps.forEach((p, i) => K.draw(p, lt, 1.3 + i * 0.18, 0.4));
+      // 반복: 조각 하나를 읽고 → 사건 하나를 낸다. 두 번 한 뒤 잠깐 쉰다
+      const L = K.loop(lt, 2.5, [1.5, 1.3, 1.5, 1.3, 1.2]);
+      const e = L.i < 0 || L.i > 3 ? -1 : L.i >> 1, ph = L.i & 1, u = L.u;
+      d.ag.act(lt, e >= 0 && ((ph === 0 && u > 0.55) || (ph === 1 && u < 0.4)));
+      if (lt < 1.5) d.ag.render(lt, 0.9);
+      [0, 1].forEach(g => {
+        const on = e === g;
+        const a = on ? 'rgba(47,123,255,.42)' : 'rgba(47,123,255,.18)';
+        d.mk[g + 1].forEach((sp, j) => {
+          sp.style.backgroundSize = `${f1(prog(lt, 1.5 + g * 0.35 + j * 0.15, 0.3, ease.inOutCubic) * 100)}% 36%`;
+          set(sp, 'backgroundImage', `linear-gradient(${a}, ${a})`);
+        });
+        const fr = d.frag[g];
+        if (on && ph === 0) { K.travel(fr, u, 0.2, 0.55, d.from[g], d.to, { arc: 40, fade: false }); fr.style.opacity = clamp((u - 0.1) / 0.12).toFixed(3); }
+        else if (on && ph === 1) { K.travel(fr, 1, 0, 1, d.to, d.to, { fade: false }); fr.style.opacity = clamp(1 - u / 0.3).toFixed(3); }
+        else fr.style.opacity = '0';
+        const hit = on && ph === 1;
+        d.ps[g].setAttribute('stroke-width', hit ? 7 : 4);
+        set(d.cards[g], 'borderColor', hit ? C.blue : '');
+        set(d.cards[g], 'background', hit ? '#EAF2FF' : '');
+        set(d.cards[g], 'boxShadow', hit ? '0 0 0 3px #2F7BFF, 0 18px 40px -22px rgba(47,123,255,.6)' : '');
+        if (lt > 2.4) d.cards[g].style.transform = `scale(${(1 + (hit ? 0.045 * bump(u / 0.45) : 0)).toFixed(4)})`;
+      });
+    },
+  });
+
+  // ── 입력 2: 사건 유형 아홉 가지 ───────────────────────────
+  DECK.slide({
+    id: 'c1-types', title: '사건 유형 아홉 가지 가운데 두 가지가 나왔다', chapter: CH, harness: 'orgchange',
+    notes: '입력이 시행세칙 차수 비교든 말로 준 시나리오든, 변경 해석 에이전트(org-change-interpreter)는 변경 하나하나를 사건 유형 아홉 가지 가운데 하나로 정리한다. 부서 단위의 변경이 여섯 가지(부서신설, 부서폐지, 부서통합, 부서분리, 명칭변경, 상위조직변경), 업무 단위의 변경이 세 가지(업무이관, 업무신설, 업무폐지)다. 유형에 따라 뒤 단계가 분류기준표에서 찾을 대상과 낼 수 있는 조치가 달라진다.\n이번 시나리오에서는 상위조직변경(E01)과 업무이관(E02)이 나왔다. 실제 개정 이력에서는 44→45차가 부서분리, 45→46차가 부서신설에 해당한다.\n출처: kac-org-change-impact/.claude/skills/unit-task-impact-rules(사건 유형 정의), _workspace/시나리오-신공항건설1부이동/02_changes.json',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '사건 유형', title: '사건 유형 아홉 가지 가운데 두 가지가 나왔다' });
+      const TYPES = [['부서신설', '없던 부서가 생긴다'], ['부서폐지', '부서와 업무가 없어진다'], ['부서통합', '여러 부서가 하나가 된다'], ['부서분리', '한 부서가 여럿으로 나뉜다'], ['명칭변경', '부서 이름만 바뀐다'],
+        ['상위조직변경', '부서는 그대로, 소속만 바뀐다'], ['업무이관', '업무 일부가 다른 부서로 간다'], ['업무신설', '부서에 새 업무가 생긴다'], ['업무폐지', '업무가 없어진다']];
+      d.hit = { 5: 'E01', 6: 'E02' };
+      d.tiles = TYPES.map((t, i) => {
+        const el = K.at(root, 'card flat', { x: 120 + (i % 3) * 570, y: 316 + Math.floor(i / 3) * 212, w: 540, h: 184 });
+        el.style.borderWidth = '2px';
+        const nm = txt(el, { x: 34, y: 34 }, t[0], 'font:900 46px/1.1 var(--display);letter-spacing:-0.03em;white-space:nowrap');
+        txt(el, { x: 34, y: 108 }, t[1], 'font:600 28px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap');
+        let tag = null;
+        if (d.hit[i]) { tag = K.chip(el, d.hit[i], 'blue lg', { r: 26, y: 28 }); tag.classList.add('mono'); tag.style.opacity = '0'; }
+        return { el, nm, tag };
+      });
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.tiles.forEach((t, i) => K.rise(t.el, lt, 0.4 + i * 0.07, { y: 22 }));
+      // 해당하는 두 칸은 등장 뒤 계속 강조한다. 반복: 두 칸을 번갈아 짚는다
+      const L = K.loop(lt, 2.6, [1.8, 1.8]);
+      const HI = [5, 6];
+      d.tiles.forEach((t, i) => {
+        const k = HI.indexOf(i), isHit = k >= 0;
+        const t0 = 1.5 + Math.max(0, k) * 0.35, lit = isHit && lt >= t0;
+        const cur = isHit && L.i === k;
+        set(t.el, 'borderColor', lit ? C.blue : '');
+        set(t.el, 'background', lit ? '#EAF2FF' : '');
+        set(t.el, 'boxShadow', lit ? (cur ? '0 0 0 6px #2F7BFF, 0 22px 44px -20px rgba(47,123,255,.75)' : '0 0 0 3px #2F7BFF, 0 18px 40px -22px rgba(47,123,255,.6)') : 'none');
+        set(t.nm, 'color', lit ? '#1F5FD6' : '');
+        if (t.tag) K.pop(t.tag, lt, t0);
+        if (isHit && lt >= t0) t.el.style.transform = `scale(${(1 + 0.05 * bump((lt - t0) / 0.35) * (lt < t0 + 0.35 ? 1 : 0) + (cur ? 0.035 * Math.min(1, L.u / 0.15, (1 - L.u) / 0.15) : 0)).toFixed(4)})`;
+        if (!isHit && lt > 1.5) t.el.style.opacity = lerp(1, 0.5, clamp((lt - 1.5) / 0.6)).toFixed(3);
+      });
+    },
+  });
+
+  // ── 진행 순서 1: 1~4단계 ─────────────────────────────────
+  DECK.slide({
+    id: 'c1-flow', title: '사건을 먼저 정하고, 사람이 확인한다', chapter: CH, harness: 'orgchange',
+    notes: '진행 순서 여덟 단계 가운데 앞의 네 단계다. 1단계 스크립트(prepare.py)는 시행세칙 44~47차와 직제규정 39~41차 hwpx 파일을 읽어 차수마다 조직 구조와 업무분장을 정리한다(_workspace/_regulations/조직_47차.json 등). 2단계 변경 해석 에이전트(org-change-interpreter, opus)가 시나리오와 정리한 규정을 읽고 사건 표(02_changes.json)를 쓴다. 이번에는 사건 2개와 확인필요 질문 4개가 나왔다.\n3단계에서 사건 표와 확인필요 질문을 사람에게 보여 주고 확인을 받는다. 사건 해석이 틀리면 뒤 단계가 모두 틀리기 때문이다. 고칠 곳이 있으면 2단계를 다시 부른다.\n4단계 스크립트(impact_lookup.py)는 사건마다 분류기준표에서 영향 받을 후보 단위업무와 기록물철을 찾는다(03_candidates/E01.json: 단위업무 2개·기록물철 5개, E02.json: 단위업무 5개·기록물철 8개).\n출처: kac-org-change-impact/.claude/skills/org-change-impact/SKILL.md 「데이터 전달」, .claude/agents/*.md, _workspace/시나리오-신공항건설1부이동/03_candidates/_summary.json',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '진행 순서 1~4단계', title: '사건을 먼저 정하고, 사람이 확인한다' });
+      const BASE = 690;
+      d.act = lineUp(root, [
+        { kind: 'script', name: '스크립트', job: '규정을 정리한다', w: 210 },
+        { id: 'org-change-interpreter', job: '문장을 사건으로 나눈다', w: 220 },
+        { kind: 'human', name: '사람', job: '사건을 확인한다', w: 150 },
+        { kind: 'script', name: '스크립트', job: '영향 받을 후보를 찾는다', w: 210 },
+      ], BASE, 1);
+      d.svg = K.svg(root);
+      d.arr = [0, 1, 2].map(i => K.path(d.svg, [[CX[i] + 138, BASE - 110], [CX[i + 1] - 138, BASE - 110]], { color: C.ink2, width: 4, arrow: true }));
+      d.cap = txt(root, { x: 120, y: 872, w: 1680 }, '사건을 잘못 나누면 뒤 단계가 모두 틀린다', CAP);
+      d.doc = K.doc(root, '', { x: 0, y: 0, w: 250 }); d.doc.style.textAlign = 'center'; d.doc.style.opacity = '0';
+      d.pos = CX.map(x => [x - 125, 352]);
+      d.say = K.say(root, '확인', { x: CX[2] + 84, y: 470 }, 'ok', 'l'); d.say.style.opacity = '0';
+      d.IN = ['시행세칙', '정리한 규정', '사건 2개', '사건 2개'];
+      d.OUT = ['정리한 규정', '사건 2개', '사건 2개', '후보 단위업무'];
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.act.forEach((a, i) => a.render(lt, 0.5 + i * 0.18));
+      d.arr.forEach((p, i) => K.draw(p, lt, 0.8 + i * 0.18, 0.3));
+      K.rise(d.cap, lt, 1.7, { y: 14 });
+      // 반복: 문서 한 장이 네 단계를 차례로 지나며 이름이 바뀐다
+      const L = K.loop(lt, 2.5, [1.6, 1.6, 1.6, 1.6, 0.5]);
+      const st = L.i, u = L.u;
+      d.act.forEach((a, i) => { if (lt > 2.3) a.act(lt, st === i && u > 0.35); });
+      vis(d.say, st === 2 && u > 0.6 ? 1 : 0);
+      if (st < 0) { d.doc.style.opacity = '0'; return; }
+      const i = Math.min(st, 3), done = st > 3 || u > 0.68;
+      const label = done ? d.OUT[i] : d.IN[i];
+      if (d.doc.textContent !== label) d.doc.textContent = label;
+      const cls = 'doc' + ((i === 2 && done) || i === 3 ? ' ok' : '');
+      if (d.doc.className !== cls) d.doc.className = cls;
+      const to = d.pos[i], from = i === 0 ? [to[0] - 150, to[1]] : d.pos[i - 1];
+      K.travel(d.doc, st > 3 ? 1 : u, 0, 0.32, from, to, { arc: 30, fade: false });
+      d.doc.style.transform = `scale(${(1 + (st <= 3 ? 0.12 * bump((u - 0.68) / 0.2) * (u > 0.68 && u < 0.88 ? 1 : 0) : 0)).toFixed(4)})`;
+      d.doc.style.opacity = (st === 0 ? clamp(u / 0.12) : st > 3 ? clamp(1 - u / 0.6) : 1).toFixed(3);
+    },
+  });
+
+  // ── 진행 순서 2: 5~8단계 ─────────────────────────────────
+  DECK.slide({
+    id: 'c1-flow2', title: '사건마다 분석과 검증을 한 번씩 되풀이한다', chapter: CH, harness: 'orgchange',
+    notes: '진행 순서의 뒤 네 단계다. 5단계 영향 분석 에이전트(unit-impact-analyst, opus)가 사건 하나의 후보(03_candidates/E01.json)를 읽고 단위업무마다 조치와 근거를 적은 변경안(04_proposals/E01.json)을 낸다. 6단계 검증 에이전트(change-proposal-verifier, opus)가 변경안과 후보를 함께 읽고 판정(타당, 수정필요)과 빠진 단위업무를 따로 적는다(05_verify/E01.json). 검증 에이전트에는 Edit 도구를 주지 않아 변경안 파일을 고칠 수 없다. 5·6단계는 사건마다(E01, E02) 한 번씩 돈다. 에이전트는 쓴 파일을 validate.py로 검사해 OK를 확인한다.\n7단계 스크립트(build_change_table.py)가 두 사건의 변경안과 검증 결과를 합쳐 분류기준표_변경안.csv(3행)와 06_impact_stats.json을 만든다. 8단계 보고서 에이전트(impact-report-writer, sonnet)가 이 두 파일만 읽고 영향도_보고서.md를 쓴다. 결과는 output/시나리오-신공항건설1부이동/ 에 놓인다.\n출처: kac-org-change-impact/.claude/skills/org-change-impact/SKILL.md 「데이터 전달」, .claude/agents/*.md',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '진행 순서 5~8단계', title: '사건마다 분석과 검증을 한 번씩 되풀이한다' });
+      const BASE = 735;
+      d.box = K.at(root, '', { x: 130, y: 347, w: 830, h: 590 });
+      d.box.style.cssText += ';border:3px dashed rgba(47,123,255,.55);border-radius:22px;box-sizing:border-box';
+      d.tab = K.at(root, '', { x: 162, y: 321 });
+      d.tab.style.cssText += ';display:flex;align-items:center;gap:12px;padding:0 6px 0 0;background:var(--paper)';
+      const tl = h('span', 'chip blue lg', d.tab, '사건마다 한 번씩');
+      tl.style.fontWeight = '800';
+      d.ev = ['E01', 'E02'].map(t => { const c = h('span', 'chip lg mono', d.tab, t); c.style.cssText += ';border:2.5px solid var(--blue);box-sizing:border-box'; return c; });
+      d.act = lineUp(root, [
+        { id: 'unit-impact-analyst', job: '변경안을 낸다', w: 220 },
+        { id: 'change-proposal-verifier', job: '변경안을 따로 확인한다', w: 200 },
+        { kind: 'script', name: '스크립트', job: '변경안 표를 만든다', w: 210 },
+        { id: 'impact-report-writer', job: '보고서를 쓴다', w: 200 },
+      ], BASE, 5);
+      d.svg = K.svg(root);
+      d.arr = [0, 1, 2].map(i => K.path(d.svg, [[CX[i] + 138, BASE - 110], [CX[i + 1] - 138, BASE - 110]], { color: C.ink2, width: 4, arrow: true }));
+      // 다음 사건으로 돌아가는 선
+      d.back = K.path(d.svg, [[CX[1], 847], [CX[1], 869], [CX[0], 869], [CX[0], 847]], { color: C.blue, width: 4, arrow: true, radius: 16 });
+      d.backLab = txt(root, { x: 440, y: 881, w: 200 }, '다음 사건', 'text-align:center;font:800 28px/1.3 var(--sans);letter-spacing:-0.02em;color:#1F5FD6');
+      const mk = () => { const e = K.doc(root, '', { x: 0, y: 0, w: 250 }); e.style.textAlign = 'center'; e.style.opacity = '0'; return e; };
+      d.dA = mk(); d.dB = mk(); d.dC = mk();
+      d.pos = CX.map(x => [x - 125, 401]);
+      d.park = [[CX[2] - 150, 361], [CX[2] - 100, 413]];
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      K.rise(d.box, lt, 0.4, { y: 0, scale: 0.98, blur: 0 }); K.pop(d.tab, lt, 0.6);
+      d.act.forEach((a, i) => a.render(lt, 0.55 + i * 0.18));
+      d.arr.forEach((p, i) => K.draw(p, lt, 0.85 + i * 0.18, 0.3));
+      K.draw(d.back, lt, 1.5, 0.5); K.rise(d.backLab, lt, 1.7, { y: 0 });
+      // 반복(한 바퀴 13.4초): E01 이 5→6 을 지나 기다리고, E02 가 5→6 을 지난 뒤, 둘을 합쳐 7→8 로 간다
+      const L = K.loop(lt, 2.4, [13.4]);
+      const T = L.i < 0 ? -1 : L.t, p = d.pos;
+      const on = (a, b) => T >= a && T < b;
+      if (lt > 2.2) {
+        d.act[0].act(lt, on(0.9, 2.1) || on(5.8, 7.0));
+        d.act[1].act(lt, on(2.9, 4.1) || on(7.8, 9.0));
+        d.act[2].act(lt, on(9.8, 11.0));
+        d.act[3].act(lt, on(11.8, 13.0));
+      }
+      const cur = T < 0 ? -1 : T < 4.9 ? 0 : T < 9.8 ? 1 : 2;
+      d.ev.forEach((c, i) => { const a = cur === i; set(c, 'background', a ? C.blue : 'var(--paper-3)'); set(c, 'color', a ? '#fff' : '#1F5FD6'); });
+      d.back.setAttribute('stroke-width', on(4.1, 5.4) ? 7 : 4);
+      // 사건 하나의 문서: s = 그 사건이 시작한 시각, 마지막에 park 자리로 간다
+      const one = (el, name, s, park) => {
+        const t = T - s;
+        if (T < 0 || t < 0 || T >= 10.5) { el.style.opacity = '0'; return; }
+        const label = t < 1.5 ? '사건 ' + name : t < 3.5 ? name + ' 변경안' : name + ' 검증 의견';
+        if (el.textContent !== label) el.textContent = label;
+        const cls = 'doc' + (t >= 3.5 ? ' bad' : t >= 1.5 ? ' blue' : '');
+        if (el.className !== cls) el.className = cls;
+        if (t < 2.1) K.travel(el, t, 0, 0.6, [p[0][0] - 150, p[0][1]], p[0], { arc: 20, fade: false });
+        else if (t < 4.1) K.travel(el, t, 2.1, 0.7, p[0], p[1], { arc: 34, fade: false });
+        else K.travel(el, t, 4.1, 0.8, p[1], park, { arc: 30, fade: false });
+        el.style.transform = `scale(${(1 + 0.12 * (bump((t - 1.5) / 0.25) * (t > 1.5 && t < 1.75 ? 1 : 0) + bump((t - 3.5) / 0.25) * (t > 3.5 && t < 3.75 ? 1 : 0))).toFixed(4)})`;
+        el.style.opacity = Math.min(clamp(t / 0.2), clamp((10.5 - T) / 0.3)).toFixed(3);
+      };
+      one(d.dA, 'E01', 0, d.park[0]); one(d.dB, 'E02', 4.9, d.park[1]);
+      // 합친 결과
+      if (T < 10.3) d.dC.style.opacity = '0';
+      else {
+        const label = T < 12.4 ? '변경안 3행' : '영향도 보고서';
+        if (d.dC.textContent !== label) d.dC.textContent = label;
+        K.travel(d.dC, T, 11.0, 0.8, p[2], p[3], { arc: 34, fade: false });
+        d.dC.style.transform = `scale(${(1 + 0.12 * bump((T - 12.4) / 0.25) * (T > 12.4 && T < 12.65 ? 1 : 0)).toFixed(4)})`;
+        d.dC.style.opacity = Math.min(clamp((T - 10.3) / 0.25), clamp((13.4 - T) / 0.3)).toFixed(3);
+      }
+    },
+  });
+
+  // ── 사건 E01: 부서 상자가 옮겨 간다 ───────────────────────
+  // 조직도 한 묶음(위 조직 이름 + 실·단 + 아래 부서들)
+  function orgCol(root, o) {
+    const top = txt(root, { x: o.x, y: 306 }, o.top, LAB);
+    const par = K.at(root, '', { x: o.x, y: 352, w: 560, h: 86 }, o.name);
+    par.style.cssText += ';box-sizing:border-box;border-radius:14px;background:var(--ink);color:#FDF3E2;display:flex;align-items:center;padding:0 30px;font:900 40px/1 var(--display);letter-spacing:-0.03em';
+    const KY = i => 472 + i * 102;
+    const spine = K.at(root, '', { x: o.x + 30, y: 438, w: 4, h: KY(o.kids.length - 1) + 40 - 438 }); spine.style.background = 'rgba(27,42,74,.4)';
+    const kids = o.kids.map((nm, i) => {
+      const tick = K.at(root, '', { x: o.x + 32, y: KY(i) + 38, w: 38, h: 4 }); tick.style.background = 'rgba(27,42,74,.4)';
+      const n = K.at(root, '', { x: o.x + 70, y: KY(i), w: 560, h: 80 }, nm);
+      n.style.cssText += ';box-sizing:border-box;border-radius:12px;background:var(--paper-3);border:2px solid var(--rule-2);display:flex;align-items:center;padding:0 28px;font:800 36px/1 var(--sans);letter-spacing:-0.03em;color:var(--ink)';
+      return { n, tick, x: o.x + 70, y: KY(i) };
+    });
+    return { top, par, spine, kids, x: o.x, KY, render(lt, t0) {
+      K.rise(top, lt, t0, { y: 8 }); K.pop(par, lt, t0 + 0.05); K.wipe(spine, lt, t0 + 0.3, 0.5, 'down');
+      kids.forEach((kd, i) => { K.wipe(kd.tick, lt, t0 + 0.4 + i * 0.08, 0.25); if (!kd.skip) K.rise(kd.n, lt, t0 + 0.42 + i * 0.08, { x: -18, y: 0 }); });
+    } };
+  }
+  DECK.slide({
+    id: 'c1-e01', title: '신공항건설1부가 건설사업실로 옮긴다', chapter: CH, harness: 'orgchange',
+    notes: '사건 E01은 상위조직변경이다. 신공항건설1부의 소속만 부사장직할 신공항추진단에서 건설기술본부 건설사업실로 바뀐다(확신도 높음). 부 이름은 시나리오에 바꾼다는 말이 없어 그대로 뒀다. 세칙 47차 별표 3에서 신공항건설1부의 업무분장은 1~4호가 제주 제2공항 건설사업, 5호가 KAC-BIM 사업관리다. 5호는 E02에서 데이터융합부로 가므로 건설사업실로 함께 가는 업무는 1~4호다.\n분류기준표에서 이 사건의 후보 단위업무는 2개다. U0087(신공항추진단/신공항건설1부 단독 행, 철 F0164)과 U0086(부서 표기가 "신공항건설1부, 2부"인 공동 행, 철 4개)이다. 신공항추진단의 2021~2026년 생산·접수 문서는 6,873건인데, 문서목록에 부·단위업무 칸이 없어 1부만의 건수는 낼 수 없다.\n조직도는 세칙 47차(조직_47차.json) 기준이다. 분류기준표에만 있는 디지털트윈사업부(신공항추진단 아래, 세칙 업무분장에는 없는 부서)는 화면에서 뺐다.\n출처: kac-org-change-impact/_workspace/시나리오-신공항건설1부이동/02_changes.json, 03_candidates/_summary.json, output/시나리오-신공항건설1부이동/06_impact_stats.json',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '사건 E01 · 상위조직변경', title: '신공항건설1부가 건설사업실로 옮긴다' });
+      d.svg = K.svg(root);
+      d.A = orgCol(root, { x: 150, top: '부사장직할', name: '신공항추진단', kids: ['신공항계획부', '신공항건설1부', '신공항건설2부'] });
+      d.B = orgCol(root, { x: 1070, top: '건설기술본부', name: '건설사업실', kids: ['공항계획부', '건설안전부'] });
+      d.n1 = d.A.kids[1]; d.n1.skip = true;
+      d.n1.n.style.zIndex = '3';
+      // 떠난 자리(점선)
+      d.ghost = K.at(root, '', { x: d.n1.x, y: d.n1.y, w: 560, h: 80 });
+      d.ghost.style.cssText += ';box-sizing:border-box;border-radius:12px;border:3px dashed rgba(47,123,255,.4);opacity:0';
+      root.insertBefore(d.ghost, d.n1.n);
+      d.dst = [d.B.x + 70, d.B.KY(2)];
+      d.tickB = K.at(root, '', { x: d.B.x + 32, y: d.dst[1] + 38, w: 38, h: 4 }); d.tickB.style.background = 'rgba(27,42,74,.4)';
+      d.spB = [d.B.KY(1) + 40 - 438, d.B.KY(2) + 40 - 438];
+      d.trail = K.path(d.svg, `M 790 ${d.n1.y + 40} C 930 ${d.n1.y + 40}, 920 ${d.dst[1] + 40}, 1056 ${d.dst[1] + 40}`, { color: C.blue, width: 4, dash: '10 10', arrow: true });
+      d.cap = txt(root, { x: 120, y: 868, w: 1680 }, '하는 일은 그대로이고 소속만 바뀐다', CAP);
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.A.render(lt, 0.4); d.B.render(lt, 0.55);
+      K.rise(d.cap, lt, 1.6, { y: 14 });
+      // 반복: 제자리 → 옮겨 간다 → 새 자리에서 머문다 → 처음으로
+      const L = K.loop(lt, 2.4, [1.0, 1.4, 2.3, 0.5]);
+      const st = L.i, u = L.u;
+      const p = st < 1 ? 0 : st === 1 ? ease.inOutCubic(u) : 1;
+      const lift = Math.sin(Math.PI * p);
+      const a = st === 3 ? Math.abs(1 - 2 * u) : 1;       // 되돌아갈 때 새 자리에서 사라졌다가 원래 자리에 나타난다
+      const pp = st === 3 && u > 0.5 ? 0 : p;
+      const n = d.n1.n;
+      if (lt < 2.4) K.rise(n, lt, 0.9, { x: -18, y: 0 });
+      else {
+        n.style.filter = ''; n.style.opacity = a.toFixed(3);
+        n.style.transform = `translate(${f1((d.dst[0] - d.n1.x) * pp)}px, ${f1((d.dst[1] - d.n1.y) * pp - 80 * (pp === p ? lift : 0))}px) scale(${(1 + 0.04 * lift).toFixed(4)})`;
+      }
+      const moved = st >= 1 && !(st === 3 && u > 0.5);
+      set(n, 'border', (st >= 0 && lt > 2.4) ? '4px solid ' + C.blue : '2px solid var(--rule-2)');
+      set(n, 'background', moved ? '#EAF2FF' : 'var(--paper-3)');
+      n.style.boxShadow = `0 ${f1(10 + 24 * lift)}px ${f1(26 + 30 * lift)}px -16px rgba(47,123,255,${(0.2 + 0.5 * lift).toFixed(2)})`;
+      d.ghost.style.opacity = (moved ? clamp(p / 0.3) * a : 0).toFixed(3);
+      set(d.n1.tick, 'opacity', moved ? '0.25' : '1');
+      const arrive = st === 1 ? clamp((u - 0.7) / 0.3) : st === 2 ? 1 : st === 3 && u < 0.5 ? a : 0;
+      d.B.spine.style.height = lt < 1.5 ? d.B.spine.style.height : f1(lerp(d.spB[0], d.spB[1], arrive)) + 'px';
+      if (lt < 1.5) d.B.spine.style.height = d.spB[0] + 'px';
+      d.tickB.style.opacity = arrive.toFixed(3);
+      K.draw(d.trail, st === 2 ? L.u * 2.3 : 0, 0.05, 0.4);
+      if (st === 3 && u < 0.5) { d.trail.style.opacity = a.toFixed(3); if (d.trail._arrow) d.trail._arrow.style.opacity = a.toFixed(3); }
+      else if (st !== 2) { d.trail.style.opacity = '0'; if (d.trail._arrow) d.trail._arrow.style.opacity = '0'; }
+    },
+  });
+
+  // ── 사건 E02: 업무 하나가 다른 부서로 간다 ────────────────
+  DECK.slide({
+    id: 'c1-e02', title: 'KAC-BIM 업무만 데이터융합부로 간다', chapter: CH, harness: 'orgchange',
+    notes: '사건 E02는 업무이관이다. 세칙 47차 별표 3에서 신공항건설1부의 업무분장은 다섯 가지다. 1~4호는 제주 제2공항 건설사업(설계 및 시공관리, 공정계획·공정관리, 총사업비 관리·조정, 이해관계자 협의)이고 5호가 KAC-BIM 사업관리다. 시나리오는 이 5호만 전략기획본부 스마트공항추진실 데이터융합부로 옮긴다. 데이터융합부의 47차 업무분장은 1~12호이고 BIM 문구는 없다.\n확신도는 보통이다. 분류기준표에서 BIM 단위업무 8개(U0078~U0085)가 신공항건설1부가 아니라 세칙 업무분장에 없는 디지털트윈사업부 아래에 있고, 이관 범위와 디지털트윈사업부를 어떻게 할지가 시나리오에 없기 때문이다. 이 문제는 뒤의 「빠진 단위업무 8개」 장과 「사람이 정할 것」 장에서 다시 나온다. 이 사건의 후보는 단위업무 5개·기록물철 8개다.\n출처: kac-org-change-impact/_workspace/시나리오-신공항건설1부이동/02_changes.json(E02 근거), 03_candidates/_summary.json, _workspace/_regulations/조직_47차.json',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '사건 E02 · 업무이관', title: 'KAC-BIM 업무만 데이터융합부로 간다' });
+      d.svg = K.svg(root);
+      const panel = (x, lab, name) => {
+        const c = K.at(root, 'card', { x, y: 322, w: 680, h: 440 });
+        txt(c, { x: 44, y: 34 }, lab, LAB);
+        txt(c, { x: 44, y: 78 }, name, 'font:900 42px/1.15 var(--display);letter-spacing:-0.03em;white-space:nowrap');
+        return c;
+      };
+      d.pl = panel(150, '업무를 내보내는 부서', '신공항건설1부');
+      d.pr = panel(1090, '업무를 받는 부서', '스마트공항추진실 데이터융합부');
+      const item = (x, y, t, mute) => {
+        const e = K.at(root, '', { x, y, w: 592, h: 96 }, t);
+        e.style.cssText += `;box-sizing:border-box;border-radius:12px;background:${mute ? 'var(--paper-2)' : '#fff'};border:2px solid var(--rule-2);display:flex;align-items:center;padding:0 28px;font:800 34px/1 var(--sans);letter-spacing:-0.03em;color:${mute ? 'var(--ink-2)' : 'var(--ink)'};white-space:nowrap`;
+        return e;
+      };
+      d.it = [item(194, 482, '제주 제2공항 건설사업 업무 4개', true), item(1134, 482, '기존 업무 12개', true)];
+      d.src = [194, 622]; d.dst = [1134, 622];
+      d.ghost = K.at(root, '', { x: d.src[0], y: d.src[1], w: 592, h: 96 });
+      d.ghost.style.cssText += ';box-sizing:border-box;border-radius:12px;border:3px dashed rgba(47,123,255,.4);opacity:0';
+      d.slot = K.at(root, '', { x: d.dst[0], y: d.dst[1], w: 592, h: 96 });
+      d.slot.style.cssText += ';box-sizing:border-box;border-radius:12px;border:3px dashed rgba(27,42,74,.22)';
+      d.mv = item(d.src[0], d.src[1], 'KAC-BIM 사업관리');
+      d.mv.style.zIndex = '3';
+      d.arrow = K.path(d.svg, [[848, 670], [1072, 670]], { color: C.blue, width: 5, arrow: true });
+      d.cap = txt(root, { x: 120, y: 868, w: 1680 }, '부서는 그대로 있고 업무 하나만 옮긴다', CAP);
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      K.rise(d.pl, lt, 0.4, { y: 22 }); K.rise(d.pr, lt, 0.55, { y: 22 });
+      d.it.forEach((e, i) => K.rise(e, lt, 0.8 + i * 0.15, { y: 14 }));
+      K.rise(d.slot, lt, 1.1, { y: 0 });
+      K.draw(d.arrow, lt, 1.3, 0.4);
+      K.rise(d.cap, lt, 1.6, { y: 14 });
+      const L = K.loop(lt, 2.4, [1.0, 1.4, 2.3, 0.5]);
+      const st = L.i, u = L.u;
+      const p = st < 1 ? 0 : st === 1 ? ease.inOutCubic(u) : 1;
+      const lift = Math.sin(Math.PI * p);
+      const back = st === 3 && u > 0.5, a = st === 3 ? Math.abs(1 - 2 * u) : 1, pp = back ? 0 : p;
+      const n = d.mv;
+      if (lt < 2.4) K.rise(n, lt, 0.95, { y: 14 });
+      else {
+        n.style.filter = ''; n.style.opacity = a.toFixed(3);
+        n.style.transform = `translate(${f1((d.dst[0] - d.src[0]) * pp)}px, ${f1(-90 * (back ? 0 : lift))}px) scale(${(1 + 0.04 * lift).toFixed(4)})`;
+      }
+      const moved = st >= 1 && !back;
+      set(n, 'border', lt > 2.4 ? '4px solid ' + C.blue : '2px solid var(--rule-2)');
+      set(n, 'background', moved ? '#EAF2FF' : '#fff');
+      n.style.boxShadow = `0 ${f1(10 + 24 * lift)}px ${f1(26 + 30 * lift)}px -16px rgba(47,123,255,${(0.2 + 0.5 * lift).toFixed(2)})`;
+      d.ghost.style.opacity = (moved ? clamp(p / 0.3) * a : 0).toFixed(3);
+      d.arrow.setAttribute('stroke-width', st === 1 ? 8 : 5);
+    },
+  });
+
+  // ── 변경안 3행과 검증 판정 ───────────────────────────────
+  DECK.slide({
+    id: 'c1-verify', title: '변경안 3행 가운데 2행이 타당 판정을 받았다', chapter: CH, harness: 'orgchange',
+    notes: '변경안은 영향 받는 기록물철 1건당 1행이다. 영향 분석 에이전트(unit-impact-analyst)가 3행을 냈고 검증 에이전트(change-proposal-verifier)가 타당 2, 수정필요 1로 판정했다.\n1행: F0164 제주 제2공항 사업관리(U0087, 신공항추진단/신공항건설1부 단독 행, 30년). 조치는 부서레벨변경, 건설사업실/신공항건설1부로. 판정 타당, 상태 확정안.\n2행: F0162 제주 제2공항 사업관리(U0086, 부서 표기가 "신공항건설1부, 2부"인 공동 행, 30년). 조치는 이관. 판정 수정필요, 상태 검토필요. 이 철을 옮기는 것은 맞지만 같은 단위업무의 나머지 철 3개(F0160 울릉, F0161 새만금, F0163 흑산)를 "유지"로 둔 것이 틀렸다는 판정이다.\n3행: F0153 KAC-BIM 시스템 유지관리(U0079, 신공항추진단/디지털트윈사업부, 10년). 조치는 부서레벨변경, 스마트공항추진실/데이터융합부로. 판정 타당, 상태 확정안.\n상태는 스크립트(build_change_table.py)가 정한다. 검증 판정이 타당이고 확신도가 높음·보통이면 확정안, 그 밖은 검토필요다. 확정안 2건도 사람이 검토한 뒤 적용한다. 신설 단위업무 제안은 0건이다.\n출처: kac-org-change-impact/output/시나리오-신공항건설1부이동/분류기준표_변경안.csv, 영향도_보고서.md 3.2·5.1절, 06_impact_stats.json, _workspace/시나리오-신공항건설1부이동/05_verify/',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '변경안과 검증', title: '변경안 3행 가운데 2행이 타당 판정을 받았다' });
+      d.a1 = actor(root, { id: 'unit-impact-analyst', job: '변경안을 낸다', x: 126, y: 392, w: 210, size: 26 });
+      d.a2 = actor(root, { id: 'change-proposal-verifier', job: '근거를 다시 본다', x: 1592, y: 376, w: 196 });
+      const R = [
+        ['제주 제2공항 사업관리', '1부 단독 단위업무', '건설사업실 신공항건설1부', '타당', 'ok'],
+        ['제주 제2공항 사업관리', '1부·2부 공동 단위업무', '건설사업실 신공항건설1부', '수정필요', 'warn'],
+        ['KAC-BIM 시스템 유지관리', '디지털트윈사업부 단위업무', '스마트공항추진실 데이터융합부', '타당', 'ok'],
+      ];
+      d.rows = R.map((r, i) => {
+        const el = K.at(root, 'card', { x: 392, y: 318 + i * 136, w: 1150, h: 116 });
+        txt(el, { x: 32, y: 18 }, r[0], 'font:800 32px/1.2 var(--sans);letter-spacing:-0.03em;white-space:nowrap');
+        txt(el, { x: 32, y: 64 }, r[1], 'font:500 25px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--mute);white-space:nowrap');
+        txt(el, { x: 432, y: 34 }, '→', 'font:700 36px/1.2 var(--sans);color:var(--blue)');
+        txt(el, { x: 486, y: 38 }, r[2], 'font:800 30px/1.2 var(--sans);letter-spacing:-0.03em;color:#1F5FD6;white-space:nowrap');
+        const stp = K.stampEl(el, r[3], r[4], { r: 26, y: 26 }); stp.style.opacity = '0';
+        return { el, stp, v: r[4] };
+      });
+      d.tally = [['타당', 2, 'ok', 540], ['수정필요', 1, 'warn', 1000]].map(([t, n, c, x]) => {
+        const g = K.at(root, '', { x, y: 770, w: 400, h: 170 });
+        g.style.cssText += ';display:flex;align-items:baseline;justify-content:center;gap:18px;white-space:nowrap';
+        const lb = h('span', '', g, t); lb.style.cssText = `font:900 52px/1 var(--display);letter-spacing:-0.03em;color:var(--${c})`;
+        const num = h('span', '', g, '0'); num.style.cssText = `font:900 170px/1 var(--display);letter-spacing:-0.04em;color:var(--${c})`;
+        const un = h('span', '', g, '행'); un.style.cssText = 'font:800 46px/1 var(--display);color:var(--ink-2)';
+        return { g, num, n };
+      });
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.a1.render(lt, 0.5); d.a2.render(lt, 0.7);
+      d.rows.forEach((r, i) => K.rise(r.el, lt, 0.7 + i * 0.15, { x: -30, y: 0 }));
+      d.tally.forEach((t, i) => { K.rise(t.g, lt, 1.5 + i * 0.15, { y: 14 }); K.count(t.num, lt, 1.6 + i * 0.15, 0.7, t.n); });
+      // 도장은 등장할 때 한 번 찍고 남긴다. 반복: 한 행씩 짚고 그 행의 도장을 다시 누른다
+      const DUR = 2.0, L = K.loop(lt, 2.4, [DUR, DUR, DUR, 1.8]);
+      const st = L.i, u = L.u;
+      if (lt > 2.2) { d.a1.act(lt, st >= 0 && st < 3 && u < 0.42); d.a2.act(lt, st >= 0 && st < 3 && u >= 0.42 && u < 0.9); }
+      d.rows.forEach((r, i) => {
+        const cur = st === i;
+        set(r.el, 'borderColor', cur ? C.blue : '');
+        set(r.el, 'boxShadow', cur ? '0 0 0 3px #2F7BFF, 0 18px 40px -22px rgba(47,123,255,.6)' : '');
+        if (lt > 2.4) r.el.style.transform = `translate(${f1(cur ? -14 * bump(u / 0.4) * (u < 0.4 ? 1 : 0) : 0)}px, 0px)`;
+        K.stamp(r.stp, lt, 1.6 + i * 0.25, { rot: -5 });
+        if (cur && u >= 0.55) r.stp.style.transform = `rotate(-5deg) scale(${(1 + 0.22 * bump((u - 0.55) / 0.2) * (u < 0.75 ? 1 : 0)).toFixed(4)})`;
+      });
+    },
+  });
+
+  // ── 검증이 찾은 빠진 단위업무 8개 ────────────────────────
+  DECK.slide({
+    id: 'c1-miss', title: '검증 에이전트가 빠진 단위업무 8개를 찾았다', chapter: CH, harness: 'orgchange',
+    notes: '영향 분석 에이전트가 "유지"(영향 없음)로 둔 단위업무 가운데 8개를 검증 에이전트(change-proposal-verifier)가 수정필요로 지적했다.\nE01의 1개는 U0086이다. 변경안은 철 F0162만 옮기고 나머지 철 3개(F0160 울릉공항 건설사업 관리, F0161 새만금신공항 건설사업 관리, F0163 흑산공항 사업관리)를 유지로 뒀다. 1부가 떠나면 "신공항건설1부, 2부" 표기가 실제 조직과 맞지 않으므로 신공항추진단/신공항건설2부로 이관해야 한다는 지적이다.\nE02의 7개는 디지털트윈사업부 아래의 BIM 단위업무 U0078, U0080, U0081, U0082, U0083, U0084, U0085다(기록물철 F0152, F0154~F0159). 세칙 47차에서 BIM 업무분장 문구가 신공항건설1부 5호 하나뿐이고 시나리오가 5호를 범위 제한 없이 옮기므로, 데이터융합부로 부서레벨변경(확신도 보통)이 필요하다는 지적이다. 두 사건 어느 쪽에서도 처리되지 않으면 변경적용본에 세칙 근거가 없는 디지털트윈사업부 행이 남는다.\n검증 지적은 확정안이 아니어서 변경적용본에 반영하지 않았다. 사람이 정한다.\n출처: kac-org-change-impact/output/시나리오-신공항건설1부이동/06_impact_stats.json(검증_누락지적), 영향도_보고서.md 5.2·5.3절, _workspace/시나리오-신공항건설1부이동/05_verify/E01.json·E02.json',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '검증이 찾은 누락', title: '검증 에이전트가 빠진 단위업무 8개를 찾았다' });
+      d.ag = actor(root, { id: 'change-proposal-verifier', job: '‘유지’로 둔 것을 다시 본다', x: 150, y: 372, w: 240 });
+      d.num = txt(root, { x: 520, y: 300, w: 140 }, '0', 'text-align:right;font:900 190px/1 var(--display);letter-spacing:-0.04em;color:var(--warn)');
+      d.numC = txt(root, { x: 680, y: 356 }, '<div style="font:900 46px/1.2 var(--display);letter-spacing:-0.03em">개가 영향을 받는다</div><div style="font:700 32px/1.3 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);margin-top:10px"><span style="color:var(--mute)">유지</span> → <span style="color:#965A00">수정필요</span></div>', 'white-space:nowrap');
+      const TX = i => (i === 0 ? 525 : 790 + (i - 1) * 146), TY = 556, TW = 130, TH = 150;
+      d.tiles = Array.from({ length: 8 }, (_, i) => {
+        const el = K.at(root, '', { x: TX(i), y: TY, w: TW, h: TH });
+        el.style.cssText += ';box-sizing:border-box;border-radius:12px;background:#fff;border:2.5px solid var(--rule-2)';
+        [26, 46, 66].forEach((y, j) => { const b = K.at(el, '', { x: 18, y, w: j === 2 ? 56 : 90, h: 8 }); b.style.cssText += ';border-radius:4px;background:rgba(27,42,74,.16)'; });
+        const tag = K.at(el, '', { x: 7, y: 94, w: TW - 19, h: 42 }, '유지');
+        tag.style.cssText += ';border-radius:8px;display:flex;align-items:center;justify-content:center;font:800 24px/1 var(--sans);letter-spacing:-0.03em';
+        return { el, tag };
+      });
+      d.frame = K.at(root, '', { x: 0, y: TY - 10, w: TW + 20, h: TH + 20 });
+      d.frame.style.cssText += ';box-sizing:border-box;border:5px solid var(--bad);border-radius:18px;opacity:0;pointer-events:none';
+      d.TX = TX;
+      d.svg = K.svg(root);
+      d.br = K.path(d.svg, [[790, 722], [790, 738], [1796, 738], [1796, 722]], { color: C.ink2, width: 3, radius: 10 });
+      d.g1 = txt(root, { x: 440, y: 754, w: 300 }, '<div style="font:800 32px/1.2 var(--sans);letter-spacing:-0.02em">E01 · 1개</div><div style="font:500 25px/1.3 var(--sans);color:var(--ink-2);margin-top:6px">1부·2부 공동 단위업무</div>', 'text-align:center;white-space:nowrap');
+      d.g2 = txt(root, { x: 790, y: 754, w: 1006 }, '<div style="font:800 32px/1.2 var(--sans);letter-spacing:-0.02em">E02 · 7개</div><div style="font:500 25px/1.3 var(--sans);color:var(--ink-2);margin-top:6px">디지털트윈사업부의 BIM 단위업무 <span style="color:var(--mute)">예: 공항 BIM 전환·운영관리(<span class="mono">U0078</span>)</span></div>', 'text-align:center;white-space:nowrap');
+      d.cap = txt(root, { x: 120, y: 896, w: 1680 }, '조직이 바뀌면 이 단위업무의 부서 표기도 틀리게 된다', 'text-align:center;font:800 38px/1.25 var(--display);letter-spacing:-0.025em;color:var(--ink)');
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.ag.render(lt, 0.5);
+      K.rise(d.num, lt, 0.7, { y: 16 }); K.rise(d.numC, lt, 0.8, { x: -20, y: 0 });
+      d.tiles.forEach((t, i) => K.pop(t.el, lt, 0.9 + i * 0.07));
+      K.draw(d.br, lt, 1.5, 0.4); K.rise(d.g1, lt, 1.6, { y: 10 }); K.rise(d.g2, lt, 1.7, { y: 10 });
+      K.rise(d.cap, lt, 1.9, { y: 12 });
+      // 등장: 여덟 칸이 차례로 ‘수정필요’로 바뀌고 숫자가 8까지 오른다(한 번만). 그 뒤 숫자와 칸은 그대로 둔다
+      const E0 = 1.3, ES = 0.13;
+      // 반복: 검증이 한 칸씩 다시 본다. 보는 칸만 잠깐 ‘유지’였다가 ‘수정필요’로 바뀐다
+      const STEP = 0.9, L = K.loop(lt, 3.0, [...Array(8).fill(STEP), 1.6]);
+      let n = 0;
+      d.tiles.forEach((t, i) => {
+        const first = lt >= E0 + i * ES;
+        if (first) n++;
+        const cur = L.i === i, back = cur && L.u < 0.4;
+        const on = first && !back;
+        const label = on ? '수정필요' : '유지';
+        if (t.tag.textContent !== label) t.tag.textContent = label;
+        set(t.tag, 'background', on ? C.warn : 'rgba(27,42,74,.08)');
+        set(t.tag, 'color', on ? '#fff' : '#3A4A6B');
+        set(t.el, 'borderColor', on ? C.warn : 'rgba(27,42,74,.30)');
+        const s1 = lt - (E0 + i * ES), s2 = cur ? (L.u - 0.4) * STEP : -1;
+        if (lt > E0) t.el.style.transform = `scale(${(1 + (s1 >= 0 && s1 < 0.3 ? 0.1 * bump(s1 / 0.3) : 0) + (s2 >= 0 && s2 < 0.3 ? 0.1 * bump(s2 / 0.3) : 0)).toFixed(4)})`;
+      });
+      d.num.textContent = String(n);
+      const at = L.i >= 0 && L.i < 8 ? L.i : -1;
+      if (at >= 0) { d.frame.style.left = (d.TX(at) - 10) + 'px'; d.frame.style.opacity = Math.min(1, L.u / 0.12, (1 - L.u) / 0.12).toFixed(3); }
+      else d.frame.style.opacity = '0';
+      if (lt > 2.0) d.ag.act(lt, at >= 0);
+    },
+  });
+
+  // ── 사람이 정할 네 가지 ──────────────────────────────────
+  DECK.slide({
+    id: 'c1-decide', title: '사람이 정할 것이 네 가지 남았다', chapter: CH, harness: 'orgchange',
+    notes: '네 가지는 사건 정리 단계에서 변경 해석 에이전트(org-change-interpreter)가 "확인필요"로 올린 질문이고(02_changes.json), 분석과 검증을 거친 뒤에도 답이 없어 보고서 5.4절에 그대로 남았다. 시나리오에 답이 없어서 하네스는 이 네 가지를 정하지 않는다.\n1. 이관 범위: KAC-BIM 사업관리를 데이터융합부로 옮길 때 BIM 단위업무 8개(U0078~U0085)를 전부 옮기는가, KAC-BIM 시스템 운영 같은 일부만 옮기는가. 현재 변경안은 U0079(F0153)만 옮겼다.\n2. 디지털트윈사업부: 신공항추진단에 남고 업무만 넘기는가, 데이터융합부에 흡수되는가, 신공항건설1부와 함께 건설사업실로 가는가. 세칙 47차 업무분장에 없는 부서다. 세칙 47차 정원표 주석의 디지털트윈 관련 정원 6명과 부칙 제2조의 BIM 업무 위탁사업 한시정원 3명이 함께 옮겨 가는지도 판단에 영향을 준다.\n3. 신공항건설2부: 신공항추진단에 남는가. 남으면 U0086 나머지 철(F0160, F0161, F0163)의 부서 표기를 "신공항건설2부"로 고치고, 2부도 건설사업실로 가면 "건설사업실"로 고친다.\n4. 부 이름: 건설사업실로 옮긴 뒤에도 "신공항건설1부"를 쓰는가. 2부가 신공항추진단에 남으면 서로 다른 실·단에 1부와 2부가 따로 있게 된다.\n적용 순서(보고서 8절): 확정안 2건(F0164, F0153) 검토 → 검토필요 F0162와 누락 지적, 이 네 질문을 사람이 결정 → 분류기준표에 반영 → kac-shared 색인 재생성.\n출처: kac-org-change-impact/output/시나리오-신공항건설1부이동/영향도_보고서.md 5.4절·8절, _workspace/시나리오-신공항건설1부이동/02_changes.json 확인필요',
+    setup(root, d) {
+      d.T = K.title(root, { kicker: P + '사람이 정할 것', title: '사람이 정할 것이 네 가지 남았다' });
+      d.hu = actor(root, { kind: 'human', name: '사람', job: '답을 정한다', x: 150, y: 400, w: 180 });
+      d.stamp = K.stampEl(root, '확인필요', 'warn', { x: 148, y: 838 });
+      const Q = [
+        ['BIM 단위업무 8개를 모두 옮기는가', ['8개 모두 옮긴다', '일부만 옮긴다']],
+        ['디지털트윈사업부를 어디에 두는가', ['신공항추진단에 둔다', '데이터융합부에 합친다', '건설사업실로 옮긴다']],
+        ['신공항건설2부는 신공항추진단에 남는가', ['남는다', '건설사업실로 옮긴다']],
+        ['‘신공항건설1부’ 이름을 그대로 쓰는가', ['그대로 쓴다', '바꾼다']],
+      ];
+      d.rows = Q.map((q, i) => {
+        const el = K.at(root, '', { x: 430, y: 304 + i * 166, w: 1370, h: 150 });
+        el.style.cssText += ';box-sizing:border-box;border-radius:16px;border:2px solid transparent';
+        const no = K.at(el, '', { x: 22, y: 20, w: 52, h: 52 }, String(i + 1));
+        no.style.cssText += ';border-radius:50%;box-sizing:border-box;border:3px solid var(--ink);display:flex;align-items:center;justify-content:center;font:800 28px/1 var(--sans)';
+        txt(el, { x: 96, y: 22 }, q[0], 'font:800 36px/1.3 var(--sans);letter-spacing:-0.03em;white-space:nowrap');
+        const bar = K.at(el, '', { x: 96, y: 80, h: 56 }); bar.style.cssText += ';display:flex;gap:16px;white-space:nowrap';
+        const opts = q[1].map(o => {
+          const e = h('div', '', bar);
+          e.style.cssText = 'height:56px;display:flex;align-items:center;gap:12px;padding:0 22px 0 16px;border:2.5px solid var(--rule-2);border-radius:999px;font:700 28px/1 var(--sans);letter-spacing:-0.02em;color:var(--ink);background:var(--paper-3);box-sizing:border-box';
+          e.innerHTML = '<i style="width:22px;height:22px;border-radius:50%;border:3px solid var(--ink-2);box-sizing:border-box;display:inline-block;flex:none"></i>' + o;
+          return e;
+        });
+        return { el, no, opts };
+      });
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      d.hu.render(lt, 0.5);
+      d.rows.forEach((r, i) => K.rise(r.el, lt, 0.6 + i * 0.14, { x: 30, y: 0 }));
+      K.stamp(d.stamp, lt, 1.6, { rot: -6 });
+      // 반복: 질문을 하나씩 짚고 선택지를 차례로 본다(아직 고르지 않았다)
+      const PER = 2.7, L = K.loop(lt, 2.4, [PER, PER, PER, PER]);
+      if (lt > 2.2) d.hu.act(lt, L.i >= 0);
+      d.rows.forEach((r, i) => {
+        const on = L.i === i;
+        set(r.el, 'background', on ? '#fff' : 'transparent');
+        set(r.el, 'borderColor', on ? C.ink : 'transparent');
+        set(r.el, 'boxShadow', on ? '0 18px 40px -24px rgba(27,42,74,.45)' : 'none');
+        set(r.no, 'background', on ? C.ink : 'transparent'); set(r.no, 'color', on ? '#fff' : C.ink);
+        const j = on ? Math.min(r.opts.length - 1, Math.floor(L.u * r.opts.length)) : -1;
+        r.opts.forEach((o, oi) => {
+          set(o, 'borderColor', oi === j ? C.warn : 'rgba(27,42,74,.30)');
+          set(o, 'background', oi === j ? '#FCE9C4' : '#FFFAF2');
         });
       });
-      // 건설사업실 줄기는 1부가 붙을 때 아래로 늘어난다
-      const ext = prog(lt, E1.land - 0.45, 0.4, ease.inOutCubic);
-      const B = d.cols[1];
-      if (lt > 1.0) B.spine.style.height = f1(lerp(d.spB0, d.spB1, ext)) + 'px';
-      K.wipe(d.tickB, lt, E1.land - 0.12, 0.2);
-      // E01: 신공항건설1부 가지를 떼어 건설사업실 아래로
-      set(d.n1.tick, 'opacity', String(1 - prog(lt, E1.hl + 0.15, 0.2, ease.linear)));
-      const p1 = prog(lt, E1.mv, E1.land - E1.mv, ease.inOutCubic);
-      const lift = Math.sin(Math.PI * p1);
-      const ax = 580 * p1, ay = 64 * p1 - 92 * lift;
-      if (lt >= E1.mv) {
-        const sq = RH.kf(lt, [[E1.land, 1], [E1.land + 0.07, 0.982, ease.outQuad], [E1.land + 0.2, 1, ease.outQuad]]);
-        d.n1.n.style.opacity = '1'; d.n1.n.style.filter = '';
-        d.n1.n.style.transform = `translate(${f1(ax)}px, ${f1(ay)}px) scale(${(sq * (1 + 0.035 * lift)).toFixed(4)})`;
-      }
-      d.n1.n.style.zIndex = '3';
-      d.n1.n.style.boxShadow = `0 ${f1(10 + 22 * lift)}px ${f1(26 + 26 * lift)}px -18px rgba(47,123,255,${(0.25 + 0.45 * lift).toFixed(2)})`;
-      const moved1 = lt >= E1.hl;
-      set(d.n1.n, 'border', moved1 ? '2.5px solid ' + C.blue : '1.5px solid rgba(27,42,74,.28)');
-      d.ghost.style.opacity = (prog(lt, E1.mv + 0.1, 0.35, ease.linear) * 1).toFixed(3);
-      // 1부를 따라가다가 E02 때 떨어져 데이터융합부로 가는 KAC-BIM 칩
-      const n1x = d.n1.x + ax, n1y = d.n1.y + ay;
-      const p2 = prog(lt, E2.mv, E2.land - E2.mv, ease.inOutCubic);
-      const l2 = Math.sin(Math.PI * p2);
-      const sx = KX(B.x) + d.kacOff[0], sy = KY(2) + d.kacOff[1];
-      const ex = d.df.x + d.kacOff[0], ey = d.df.y + d.kacOff[1];
-      let kx, ky;
-      if (lt < E2.mv) { kx = n1x + d.kacOff[0]; ky = n1y + d.kacOff[1]; }
-      else { kx = lerp(sx, ex, p2); ky = lerp(sy, ey, p2) - 84 * l2; }
-      d.kac.style.left = f1(kx) + 'px'; d.kac.style.top = f1(ky) + 'px';
-      const kp = K.pop(d.kac, lt, 0.95);
-      if (lt > 1.4) d.kac.style.transform = `scale(${(1 + 0.06 * l2 + 0.035 * lift).toFixed(4)})`;
-      d.kac.style.opacity = kp.toFixed(3);
-      const busy = lt >= E2.hl && lt < E2.land + 0.5;
-      set(d.kac, 'background', busy ? C.blue : 'var(--paper-3)');
-      set(d.kac, 'color', busy ? '#fff' : '#1F5FD6');
-      set(d.kac, 'border', '2px solid ' + C.blue);
-      d.kac.style.boxShadow = l2 > 0.01 ? `0 ${f1(10 + 18 * l2)}px ${f1(24 + 20 * l2)}px -14px rgba(47,123,255,.6)` : 'none';
-      d.kacGhost.style.opacity = prog(lt, E2.mv + 0.1, 0.35, ease.linear).toFixed(3);
-      // 데이터융합부: 받는 순간 테두리, 그 뒤 군청 유지
-      set(d.df.n, 'border', lt >= E2.land ? '2.5px solid ' + C.blue : '1.5px solid rgba(27,42,74,.28)');
-      // 디지털트윈사업부 BIM 묶음: E02 때 검토 대상으로 켜진다
-      K.pop(d.bim, lt, 1.0);
-      paint(d.bim, lt >= E2.hl ? 'cand' : 'idle');
-      if (lt >= E2.hl) d.bim.style.borderColor = `rgba(232,147,12,${(0.55 + 0.45 * K.wave(lt, 1.6)).toFixed(3)})`;
-      // 이동 경로와 꼬리표
-      K.draw(d.tr[0], lt, E1.land + 0.1, 0.4, { speed: 70 });
-      K.draw(d.tr[1], lt, E2.land + 0.1, 0.4, { speed: 70 });
-      K.pop(d.pill[0], lt, E1.land + 0.3);
-      K.pop(d.pill[1], lt, E2.land + 0.3);
-      // 사건 카드와 단위업무 칩
-      d.cards.forEach((c, i) => K.rise(c.c, lt, 1.0 + i * 0.1, { y: 20 }));
-      const chipAt = (u, tc, tv) => {
-        const k = lt >= tv ? u.v : lt >= tc ? 'cand' : 'idle';
-        paint(u.el, k);
-        if (u.el._lab) { const t = k === 'idle' ? '' : k === 'cand' ? '검토 대상' : k === 'ok' ? '타당' : '수정필요'; if (u.el._lab.textContent !== t) u.el._lab.textContent = t; }
-        u.el.style.transform = `scale(${Math.max(bump(lt, tc), bump(lt, tv)).toFixed(3)})`;
-      };
-      d.u1.forEach((u, j) => chipAt(u, E1.land + 0.15 + j * 0.1, E1.land + 0.9 + j * 0.15));
-      d.u2.forEach((u, j) => chipAt(u, E2.land + 0.15 + j * 0.05, j === 0 ? E2.land + 0.9 : E2.land + 1.05 + j * 0.07));
-      // 머무는 동안: E01과 E02를 번갈아 강조
-      const k = K.cycle(lt, 7.6, 2.8, 2);
-      const actE = k >= 0 ? k : lt >= E2.hl ? 1 : lt >= E1.hl ? 0 : -1;
-      d.cards.forEach((c, i) => {
-        set(c.c, 'borderColor', actE === i ? C.blue : '');
-        set(c.c, 'background', actE === i ? '#EEF4FF' : '');
-      });
-      set(d.n1.n, 'outline', actE === 0 ? '4px solid rgba(47,123,255,.18)' : 'none');
-      set(d.df.n, 'outline', actE === 1 && lt >= E2.land ? '4px solid rgba(47,123,255,.18)' : 'none');
-      d.tr.forEach((p, i) => { if (lt > [E1, E2][i].land + 0.5) p.style.opacity = actE === i ? '1' : '0.4'; });
     },
   });
 
-  // 18. 변경안과 검증
+  // ── 결과 숫자 ────────────────────────────────────────────
   DECK.slide({
-    id: 'c1-verify', title: '변경안과 검증', chapter: CH, harness: 'orgchange',
-    notes: '변경안은 영향받는 기록물철 1건당 1행이다(3행). 상태는 스크립트(build_change_table.py)가 정한다. 검증 판정이 타당이고 확신도가 높음·보통이면 확정안, 그 밖은 검토필요다. 확정안 2건(F0164, F0153)도 사람이 검토한 뒤 적용한다.\nF0162는 옮기는 것 자체는 맞지만, 같은 단위업무 U0086의 나머지 철 3개(F0160 울릉, F0161 새만금, F0163 흑산)를 "유지"로 둔 것이 틀렸다는 판정이다. 1부가 떠나면 "신공항건설1부, 2부" 표기가 실제 조직과 맞지 않는다.\nE02의 7개는 세칙 47차에서 BIM 업무분장 문구가 신공항건설1부 5호 하나뿐이고 시나리오가 5호를 범위 제한 없이 옮기므로, 데이터융합부로 부서레벨변경(확신도 보통)이 필요하다는 지적이다. 기록물철은 F0152, F0154~F0159다. 검증 지적은 확정안이 아니어서 변경적용본에 반영하지 않았다.\n신설 단위업무 제안은 0건이다.\n출처: output/.../분류기준표_변경안.csv, 영향도_보고서.md 3.2·5.1·5.2·6절, 06_impact_stats.json, _workspace/.../05_verify/',
+    id: 'c1-result', title: '한 문장에서 변경안 3행과 질문 네 가지가 나왔다', chapter: CH, harness: 'orgchange',
+    notes: '조직 변경 영향 하네스의 결과다. 시나리오 한 문장에서 사건 2개(E01 상위조직변경, E02 업무이관)를 정했고, 변경안은 기록물철 기준 3행(F0164, F0162, F0153)이 나왔다. 검증 판정은 타당 2, 수정필요 1이고 상태는 확정안 2, 검토필요 1이다. 검증 에이전트는 "유지"로 둔 단위업무 8개(E01 1개, E02 7개)가 빠졌다고 지적했다. 사람이 정할 확인필요 질문은 4개다. 신설 단위업무 제안은 0건이다.\n결과물은 다섯 개다. 영향도_보고서.md, 분류기준표_변경안.csv, 분류기준표_변경적용본.csv(확정안 2건만 반영), 신설_단위업무_제안.csv(0건), 06_impact_stats.json. 확정안 2건도 사람이 검토한 뒤 분류기준표에 적용한다.\n에이전트: org-change-interpreter, unit-impact-analyst, change-proposal-verifier, impact-report-writer. 스크립트: prepare.py, impact_lookup.py, build_change_table.py, validate.py.\n출처: kac-org-change-impact/output/시나리오-신공항건설1부이동/06_impact_stats.json(사건수 2, 변경안_기록물철_행수 3, 검증_누락지적 1+7), 영향도_보고서.md 5.4절(확인필요 질문 4개), _workspace/시나리오-신공항건설1부이동/02_changes.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: P + '변경안과 검증', title: '변경안 3행, 검증이 찾은 누락 8개' });
-      const dept = (b, a, hi) => `<div class="bf" style="position:relative;display:inline-block;font-size:21px;color:var(--mute)">${b}<i class="sk" style="position:absolute;left:-2px;right:-2px;top:54%;height:2px;background:var(--ink-2);transform-origin:0 50%;transform:scaleX(0)"></i></div>`
-        + `<div class="af" style="font-size:24px;font-weight:700;margin-top:4px;white-space:nowrap"><span style="color:var(--mute);font-weight:500">→ </span>${a.map((x, i) => (hi[i] ? `<span style="color:var(--blue)">${x}</span>` : x)).join(' / ')}</div>`;
-      const fileCell = (f, e, nm) => `<div><span class="mono" style="font-size:22px;color:var(--blue-2);font-weight:500">${f}</span><span class="mono" style="font-size:19px;color:var(--mute);margin-left:10px">${e}</span></div><div style="font-size:24px;font-weight:700;margin-top:2px;letter-spacing:-0.02em">${nm}</div>`;
-      const R = [
-        { cells: [fileCell('F0164', 'E01', '제주 제2공항 사업관리'), 'U0087', '부서레벨변경', dept('신공항추진단 / 신공항건설1부', ['건설사업실', '신공항건설1부'], [1, 0]), '30년'], v: ['타당', 'ok'], st: ['확정안', 'ok'] },
-        { cells: [fileCell('F0162', 'E01', '제주 제2공항 사업관리'), 'U0086', '이관', dept('신공항추진단 / 신공항건설1부, 2부', ['건설사업실', '신공항건설1부'], [1, 0]), '30년'], v: ['수정필요', 'warn'], st: ['검토필요', 'warn'] },
-        { cells: [fileCell('F0153', 'E02', 'KAC-BIM 시스템 유지관리'), 'U0079', '부서레벨변경', dept('신공항추진단 / 디지털트윈사업부', ['스마트공항추진실', '데이터융합부'], [1, 1]), '10년'], v: ['타당', 'ok'], st: ['확정안', 'ok'] },
-      ];
-      d.tb = K.table(root, {
-        x: 120, y: 286, w: 1680, rowH: 100,
-        cols: [{ label: '기록물철', w: 380 }, { label: '단위업무', w: 120, cls: 'mono' }, { label: '조치', w: 160 }, { label: '부서 표기 (변경 전 → 변경 후)', w: 570 }, { label: '보존기간', w: 110, align: 'center' }, { label: '검증', w: 170, align: 'center' }, { label: '상태', w: 170, align: 'center' }],
-        rows: R.map(r => [...r.cells, '', '']),
+      d.T = K.title(root, { kicker: P + '결과', title: '한 문장에서 변경안 3행과 질문 네 가지가 나왔다' });
+      const N = [[2, '개', '사건', '상위조직변경, 업무이관', C.ink], [3, '행', '변경안', '타당 2 · 수정필요 1', C.blue], [8, '개', '검증이 찾은 누락', '‘유지’로 뒀던 단위업무', C.warn], [4, '가지', '사람이 정할 것', '시나리오에 답이 없는 질문', C.ink]];
+      d.svg = K.svg(root);
+      d.arr = [0, 1, 2].map(i => K.path(d.svg, [[CX[i] + 150, 500], [CX[i + 1] - 170, 500]], { color: 'rgba(27,42,74,.45)', width: 4, arrow: true }));
+      d.cols = N.map((n, i) => {
+        const g = K.at(root, '', { x: CX[i] - 200, y: 350, w: 400, h: 470 });
+        g.style.transformOrigin = '50% 40%';
+        const line = h('div', '', g); line.style.cssText = 'display:flex;align-items:baseline;justify-content:center;gap:8px;white-space:nowrap';
+        const num = h('span', '', line, '0'); num.style.cssText = `font:900 250px/1 var(--display);letter-spacing:-0.04em;color:${n[4]}`;
+        const un = h('span', '', line, n[1]); un.style.cssText = 'font:800 50px/1 var(--display);color:var(--ink-2)';
+        const bar = h('div', '', g); bar.style.cssText = `height:8px;width:230px;margin:14px auto 0;border-radius:4px;background:${n[4]};transform-origin:50% 50%`;
+        const lab = h('div', '', g, n[2]); lab.style.cssText = 'margin-top:26px;text-align:center;font:900 42px/1.2 var(--display);letter-spacing:-0.03em;white-space:nowrap';
+        const sub = h('div', '', g, n[3]); sub.style.cssText = 'margin-top:12px;text-align:center;font:600 27px/1.3 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap';
+        return { g, num, bar, v: n[0] };
       });
-      d.tb.el.querySelectorAll('.td').forEach(td => { td.style.padding = '12px 14px'; });
-      d.tb.rows.forEach(r => { r.children[1].style.fontSize = '22px'; r.children[2].style.fontSize = '23px'; r.children[4].style.fontSize = '23px'; });
-      d.R = d.tb.rows.map((row, i) => {
-        const td = row.children;
-        const sk = td[3].querySelector('.sk'), af = td[3].querySelector('.af');
-        const w1 = h('div', '', td[5]); w1.style.cssText = 'display:flex;justify-content:center';
-        const stp = h('span', 'stamp ' + R[i].v[1], w1, R[i].v[0]);
-        stp.style.cssText = 'position:relative;display:inline-block;font-size:25px;border-width:4px;padding:3px 12px;border-radius:10px;opacity:0';
-        const ch = h('span', 'chip ' + R[i].st[1], td[6], R[i].st[0]);
-        ch.style.opacity = '0';
-        return { row, sk, af, stp, ch };
-      });
-      d.cap = txt(root, { x: 120, y: 646, w: 1680 }, '상태: 검증이 타당이고 확신도가 높음·보통이면 확정안, 그 밖은 검토필요. 확정안도 사람이 검토한 뒤 적용한다.', 'font-size:20px;color:var(--mute)');
-      // 아래: 검증이 찾은 누락
-      d.lh = txt(root, { x: 120, y: 700 }, '검증이 찾은 누락 · 단위업무 <span class="num">0</span>개', 'font-size:30px;font-weight:800;letter-spacing:-0.02em');
-      d.lhN = d.lh.querySelector('.num');
-      d.new0 = K.chip(root, '신설 단위업무 제안 0건', 'ghost', { r: 120, y: 700 });
-      d.lrule = K.at(root, '', { x: 120, y: 752, w: 1680, h: 1.5 }); d.lrule.style.background = 'var(--rule)';
-      // E01 묶음
-      d.b1 = K.at(root, '', { x: 120, y: 770, w: 430, h: 212 });
-      const b1h = h('div', '', d.b1); b1h.style.cssText = 'display:flex;align-items:center;gap:10px;height:36px';
-      const e1 = h('span', 'chip blue mono', b1h, 'E01'); e1.style.cssText += ';height:32px;font-size:19px;padding:0 10px';
-      const e1t = h('span', '', b1h, 'U0086 나머지 철 3개'); e1t.style.cssText = 'font-size:22px;font-weight:700';
-      d.t1 = h('span', 'chip', b1h, '유지'); d.t1.style.cssText += ';height:32px;font-size:19px;padding:0 10px;margin-left:auto';
-      paint(d.t1, 'keep');
-      [['F0160', '울릉공항 건설사업 관리'], ['F0161', '새만금신공항 건설사업 관리'], ['F0163', '흑산공항 사업관리']].forEach(([f, n]) => {
-        const r = h('div', '', d.b1); r.style.cssText = 'height:40px;display:flex;align-items:center;gap:12px;font-size:21px;color:var(--ink)';
-        r.innerHTML = `<span class="mono" style="font-size:20px;color:var(--ink-2)">${f}</span><span>${n}</span>`;
-      });
-      d.b1n = h('div', '', d.b1, '→ 신공항추진단 / 신공항건설2부로 이관');
-      d.b1n.style.cssText = 'font-size:21px;font-weight:700;color:#965A00;margin-top:6px;white-space:nowrap';
-      d.b1.firstChild.style.marginBottom = '6px';
-      // E02 묶음
-      d.b2h = K.at(root, '', { x: 600, y: 770, w: 1200, h: 36 });
-      d.b2h.style.cssText += ';display:flex;align-items:center;gap:10px';
-      const e2 = h('span', 'chip blue mono', d.b2h, 'E02'); e2.style.cssText += ';height:32px;font-size:19px;padding:0 10px';
-      const e2t = h('span', '', d.b2h, '디지털트윈사업부 BIM 단위업무 7개 → 데이터융합부로 부서레벨변경 필요'); e2t.style.cssText = 'font-size:22px;font-weight:700';
-      const L = [['U0078', '공항 BIM 전환사업 관리', '10년'], ['U0080', 'AX·공공기관 혁신과제 추진관리', '30년'], ['U0081', 'KAC-BIM 교육·홍보·확산', '5년'], ['U0082', '공항 BIM 기준·지침·제도 관리', '30년'],
-        ['U0083', 'BIM 인증·기술·특허관리', '30년'], ['U0084', 'BIM 대외협력', '10년'], ['U0085', 'BIM 기술 사업화', '10년']];
-      d.miss = L.map((r, i) => {
-        const x = 600 + (i < 4 ? 0 : 610), y = 816 + (i % 4) * 42;
-        const row = K.at(root, '', { x: x - 8, y, w: 598, h: 38 });
-        row.style.cssText += ';border-radius:8px';
-        const id = K.chip(row, r[0], 'id', { x: 8, y: 2, h: 34 }); id.style.cssText += ';height:34px;font-size:20px;padding:0 10px';
-        txt(row, { x: 104, y: 4 }, r[1], 'font-size:21px;white-space:nowrap');
-        txt(row, { x: 420, y: 6 }, r[2], 'font-size:20px;color:var(--ink-2)');
-        const tag = K.at(row, 'chip', { x: 480, y: 3, w: 108, h: 32 }, '유지');
-        tag.style.cssText += ';height:32px;font-size:19px;padding:0;justify-content:center';
-        paint(tag, 'keep');
-        return { row, tag, cy: y + 19 };
-      });
-      // 검증 담당이 위에서 아래로 훑는 선
-      d.scan = K.at(root, '', { x: 120, y: 0, w: 1680, h: 46 });
-      d.scan.style.cssText += ';background:linear-gradient(to bottom, rgba(232,72,58,0), rgba(232,72,58,.10));border-bottom:2.5px solid var(--bad);opacity:0;pointer-events:none';
-      d.scanLab = K.at(root, 'chip mono', { r: 120, y: 0 }, 'change-proposal-verifier');
-      d.scanLab.style.cssText += ';height:30px;font-size:19px;padding:0 10px;background:var(--bad);color:#fff;opacity:0';
+      d.cap = txt(root, { x: 120, y: 880, w: 1680 }, '타당 판정을 받은 2행도 사람이 검토한 뒤 적용한다', 'text-align:center;font:700 34px/1.3 var(--sans);letter-spacing:-0.02em;color:var(--ink-2)');
     },
     render(lt, d) {
       d.T.render(lt);
-      d.tb.render(lt, 0.4, 0.15);
-      d.R.forEach((r, i) => {
-        const t0 = 1.0 + i * 0.25;
-        r.sk.style.transform = `scaleX(${prog(lt, t0, 0.35, ease.inOutCubic).toFixed(3)})`;
-        K.rise(r.af, lt, t0 + 0.25, { x: -18, y: 0, blur: 3 });
-        K.stamp(r.stp, lt, 2.0 + i * 0.28, { rot: -7 });
-        K.pop(r.ch, lt, 2.35 + i * 0.28);
+      d.cols.forEach((c, i) => { K.rise(c.g, lt, 0.5 + i * 0.2, { y: 26 }); K.count(c.num, lt, 0.6 + i * 0.2, 0.8, c.v); });
+      d.arr.forEach((p, i) => K.draw(p, lt, 0.9 + i * 0.2, 0.3));
+      K.rise(d.cap, lt, 1.8, { y: 12 });
+      // 반복: 사건 → 변경안 → 누락 → 사람 순서로 하나씩 짚는다
+      const L = K.loop(lt, 2.4, [1.5, 1.5, 1.5, 1.5]);
+      d.cols.forEach((c, i) => {
+        const on = L.i === i;
+        if (lt > 2.4) c.g.style.transform = `scale(${(1 + (on ? 0.06 * Math.min(1, L.u / 0.15, (1 - L.u) / 0.15) : 0)).toFixed(4)})`;
+        c.bar.style.transform = `scaleX(${(lt < 2.4 ? prog(lt, 0.9 + i * 0.2, 0.5, ease.outCubic) * 0.45 : on ? lerp(0.45, 1, Math.min(1, L.u / 0.15, (1 - L.u) / 0.15)) : 0.45).toFixed(4)})`;
       });
-      K.rise(d.cap, lt, 2.8, { y: 8 });
-      K.rise(d.lh, lt, 2.4, { y: 10 });
-      K.pop(d.new0, lt, 2.6);
-      K.wipe(d.lrule, lt, 2.4, 0.6);
-      K.rise(d.b1, lt, 2.6, { y: 12 });
-      K.rise(d.b2h, lt, 2.65, { y: 12 });
-      d.miss.forEach((m, i) => K.rise(m.row, lt, 2.7 + i * 0.05, { y: 10 }));
-      // 훑기: 3.5 → 5.0초
-      const S0 = 3.5, S1 = 5.0, y0 = 760, y1 = 990;
-      const sp = prog(lt, S0, S1 - S0, ease.linear);
-      const sy = lerp(y0, y1, sp);
-      const sa = lt < S0 ? 0 : Math.min(clamp((lt - S0) / 0.15), 1 - prog(lt, S1, 0.3, ease.linear));
-      d.scan.style.top = f1(sy - 46) + 'px'; d.scan.style.opacity = sa.toFixed(3);
-      d.scanLab.style.top = f1(sy - 32) + 'px'; d.scanLab.style.opacity = sa.toFixed(3);
-      let n = 0;
-      const flip = (tag, cy) => {
-        const on = lt >= S0 && sy >= cy;
-        paint(tag, on ? 'warn' : 'keep');
-        const t = on ? '수정필요' : '유지';
-        if (tag.textContent !== t) tag.textContent = t;
-        if (on) n++;
-        const tHit = S0 + ((cy - y0) / (y1 - y0)) * (S1 - S0);
-        tag.style.transform = `scale(${bump(lt, tHit).toFixed(3)})`;
-      };
-      flip(d.t1, 788);
-      d.miss.forEach(m => flip(m.tag, m.cy));
-      d.lhN.textContent = String(n);
-      K.rise(d.b1n, lt, S0 + 0.2, { x: -12, y: 0 });
-      // 머무는 동안: 누락 8개를 차례로 짚는다
-      const k = K.cycle(lt, 5.6, 1.2, 8);
-      K.mark(d.b1, k === 0, 'rgba(232,147,12,.08)');
-      d.b1.style.borderRadius = '10px';
-      d.miss.forEach((m, i) => K.mark(m.row, k === i + 1, 'rgba(232,147,12,.10)'));
-    },
-  });
-
-  // 19. 사람이 정할 4가지
-  DECK.slide({
-    id: 'c1-decide', title: '사람이 정할 4가지', chapter: CH, harness: 'orgchange',
-    notes: '네 가지는 사건 정리 단계에서 org-change-interpreter가 이미 "확인필요"로 올린 질문이고(02_changes.json), 분석과 검증을 거친 뒤에도 답이 없어 보고서 5.4절에 그대로 남았다. 하네스는 이 네 가지를 정하지 않는다.\n디지털트윈사업부는 세칙 47차 정원표 주석의 디지털트윈 관련 정원 6명과 부칙 제2조의 BIM 업무 위탁사업 한시정원 3명이 함께 옮겨 가는지도 판단에 영향을 준다.\n적용 순서(보고서 8절): 확정안 2건(F0164, F0153) 검토 → 검토필요 F0162와 누락 지적, 이 네 질문을 사람이 결정 → 분류기준표에 반영 → kac-shared 색인 재생성.\n출처: output/시나리오-신공항건설1부이동/영향도_보고서.md 5.4절·8절, _workspace/.../02_changes.json 확인필요',
-    setup(root, d) {
-      d.T = K.title(root, { kicker: P + '사람이 정할 것', title: '사람이 정할 네 가지',
-        sub: '시나리오에 답이 없어 사람이 정해야 한다. 분석 단계에서 임의로 정하지 않았다.' });
-      d.stamp = K.stampEl(root, '확인필요', 'warn', { x: 1280, y: 156 });
-      const CARDS = [
-        { hd: '이관 범위', ev: 'E02', q: 'KAC-BIM 사업관리를 데이터융합부로 옮길 때 BIM 단위업무 8개(U0078부터 U0085)를 전부 옮기는가, KAC-BIM 시스템 운영 같은 일부만 옮기는가.', note: '현재 변경안은 U0079(F0153)만 옮겼다.', scope: true },
-        { hd: '디지털트윈사업부 거취', ev: 'E01 · E02', q: '신공항추진단에 남고 업무만 넘기는가, 데이터융합부에 흡수되는가, 신공항건설1부와 함께 건설사업실로 가는가.',
-          note: '세칙 47차 업무분장에 없는 부서다. 8개가 모두 옮겨 가면 분류기준표에서 디지털트윈사업부 행이 없어진다.', opts: ['신공항추진단 잔류', '데이터융합부 흡수', '건설사업실로 이동'] },
-        { hd: '신공항건설2부 거취', ev: 'E01', q: '신공항추진단에 남는가. 남으면 U0086 나머지 철의 부서레벨(2)를 “신공항건설2부”로 고치고, 2부도 건설사업실로 가면 부서레벨(1)을 “건설사업실”로 고친다.', note: 'U0086 나머지 철: F0160 울릉, F0161 새만금, F0163 흑산', opts: ['신공항추진단에 잔류', '건설사업실로 이동'] },
-        { hd: '부 이름', ev: 'E01', q: '건설사업실로 옮긴 뒤에도 “신공항건설1부”라는 이름을 쓰는가. 2부가 신공항추진단에 남으면 서로 다른 실·단에 1부와 2부가 따로 있게 된다.', note: '시나리오에 바꾼다는 말이 없어 변경안에는 이름을 그대로 적었다.', opts: ['“신공항건설1부” 그대로', '이름을 바꾼다'] },
-      ];
-      d.cards = CARDS.map((c, i) => {
-        const el = K.at(root, 'card', { x: 120 + (i % 2) * 855, y: 334 + Math.floor(i / 2) * 326, w: 825, h: 306 });
-        txt(el, { x: 30, y: 24 }, c.hd, 'font-size:32px;font-weight:800;letter-spacing:-0.025em');
-        const tg = K.chip(el, c.ev, 'id', { r: 30, y: 26 }); tg.style.cssText += ';height:34px;font-size:19px;padding:0 10px';
-        const qb = K.at(el, '', { x: 30, y: 78, w: 765 });
-        const qq = h('div', '', qb, c.q); qq.style.cssText = 'font-size:24px;line-height:1.45;color:var(--ink);letter-spacing:-0.01em';
-        if (c.note) { const nn = h('div', '', qb, c.note); nn.style.cssText = 'font-size:20px;line-height:1.45;color:var(--mute);margin-top:8px'; }
-        const bar = K.at(el, '', { x: 30, y: c.scope ? 226 : 236, w: 765, h: 56 });
-        bar.style.cssText += ';display:flex;gap:12px;align-items:flex-start';
-        const opts = [];
-        if (c.scope) {
-          const G = [[['U0079'], '현재 변경안', true], [['U0078', 'U0080'], '시스템·데이터 구축'], [['U0081'], '교육·확산'], [['U0082', 'U0083', 'U0084', 'U0085'], '기준·인증·대외협력·사업화']];
-          bar.style.gap = '22px';
-          G.forEach(([ids, lab, fixed]) => {
-            const g = h('div', '', bar); g.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:6px;border-radius:10px;padding:0';
-            const r = h('div', '', g); r.style.cssText = 'display:flex;gap:6px';
-            ids.forEach(id => uchip(r, id, { w: 72, pad: 0, fs: 19, h: 34, st: fixed ? 'ok' : 'cand' }));
-            const l = h('div', '', g, lab); l.style.cssText = 'font-size:19px;color:' + (fixed ? '#0B7A52' : 'var(--ink-2)') + ';font-weight:' + (fixed ? 700 : 500) + ';white-space:nowrap';
-            if (!fixed) opts.push(r);
-          });
-        } else {
-          c.opts.forEach(o => {
-            const e = h('div', '', bar);
-            e.style.cssText = 'height:48px;display:flex;align-items:center;gap:10px;padding:0 16px;border:1.5px solid var(--rule-2);border-radius:10px;font-size:21px;font-weight:600;color:var(--ink);background:var(--paper);box-sizing:border-box;white-space:nowrap';
-            e.innerHTML = '<i style="width:18px;height:18px;border-radius:50%;border:2.5px solid var(--ink-2);box-sizing:border-box;display:inline-block;flex:none"></i>' + o;
-            opts.push(e);
-          });
-        }
-        return { el, bar, opts };
-      });
-    },
-    render(lt, d) {
-      d.T.render(lt);
-      K.stamp(d.stamp, lt, 1.7, { rot: -8 });
-      d.cards.forEach((c, i) => {
-        K.rise(c.el, lt, 0.45 + i * 0.12, { y: 24 });
-        K.rise(c.bar, lt, 0.9 + i * 0.12, { x: -14, y: 0 });
-      });
-      // 머무는 동안: 카드를 하나씩 짚고, 그 안의 선택지를 차례로 훑는다(아직 고르지 않았다)
-      const T0 = 2.4, PER = 3.2;
-      const k = K.cycle(lt, T0, PER, 4);
-      const u = k < 0 ? 0 : (lt - T0) % PER;
-      d.cards.forEach((c, i) => {
-        const on = k === i;
-        set(c.el, 'borderColor', on ? C.ink : '');
-        set(c.el, 'boxShadow', on ? '0 0 0 2px #1B2A4A, 0 18px 40px -24px rgba(27,42,74,.35)' : '');
-        const j = on ? Math.floor(u / (PER / c.opts.length)) % c.opts.length : -1;
-        c.opts.forEach((o, oi) => set(o, 'outline', oi === j ? '3px solid rgba(27,42,74,.55)' : 'none'));
-        c.opts.forEach(o => set(o, 'outlineOffset', '3px'));
-      });
+      d.arr.forEach((p, i) => p.setAttribute('stroke-width', L.i === i + 1 && L.u < 0.4 ? 7 : 4));
     },
   });
 })();

@@ -37,6 +37,12 @@ const n = await page.evaluate(() => DECK.slides.length);
 let pages = [];
 const pr = arg('pages') || `1-${n}`;
 for (const part of pr.split(',')) { const [a, b] = part.split('-').map(Number); for (let i = a; i <= (b || a); i++) if (i >= 1 && i <= n) pages.push(i); }
+// --ids a,b,c : 장 id 로 고른다(다른 사람이 장을 더해 번호가 바뀌어도 같은 장을 찍는다). 'pre*' 처럼 끝에 * 를 붙이면 앞부분이 같은 장 모두.
+if (arg('ids')) {
+  const want = arg('ids').split(',');
+  const all = await page.evaluate(() => DECK.slides.map(d => d.id));
+  pages = all.map((id, i) => (want.some(w => (w.endsWith('*') ? id.startsWith(w.slice(0, -1)) : id === w)) ? i + 1 : 0)).filter(Boolean);
+}
 for (const p of pages) {
   for (const t of times) {
     await page.evaluate(([i, tt]) => DECK.seek(i, tt), [p - 1, t]);

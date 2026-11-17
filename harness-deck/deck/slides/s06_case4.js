@@ -1,6 +1,7 @@
-/* 단위업무명 추천 — 과제 「단위업무명 추천·제안」. 필름 F 구간에 이어진다. 출처는 storyboard.md 「5. 사례 4」
+/* 단위업무명 추천 — 과제 「단위업무명 추천·제안」. 필름 F 구간에 이어진다.
    숫자 출처: kac-unit-task-naming/output/20261117-감사실/요약.md, 단위업무_제안표.csv,
-   _workspace/20261117-감사실/manifest.json, 감사실/clusters.json·proposals.json·review_v1.json·review.json */
+   _workspace/20261117-감사실/manifest.json, 감사실/clusters.json·existing_units.json·proposals.json·review_v1.json·review.json,
+   .claude/skills/unit-task-naming-rules/SKILL.md, references/naming-conventions.md */
 (function () {
   'use strict';
   const { ease, prog, clamp, lerp, h, s, css } = RH;
@@ -171,153 +172,199 @@
     notes: '10초 챕터 영상. 필름 F 구간의 작업장(라벨 프린터 책상)이 움직이고, 질문 「기준표에 없는 업무는요?」에 kac-unit-task-naming이 답한다. 감사실 이름 하나가 자모로 풀렸다가 제안 이름으로 다시 모인다. 끝나면 → 키로 넘긴다.',
   });
 
-  // 35. 과제와 흐름
+
+  // ── 이 파일 안에서만 쓰는 작은 함수 ──
+  const TW = 1470;   // 제목 폭(오른쪽 위 하네스 그림 자리를 비운다)
+  const txt = (root, html, box, style) => { const e = K.at(root, '', box, html); e.style.cssText += ';' + style; return e; };
+  const show = (el, on) => { el.style.opacity = on ? '1' : '0'; el.style.transform = `scale(${on ? 1 : 0.8})`; };
+  const actor = (root, o) => K.actor(root, o);
+  const kindOf = o => o.kind || K.AG[o.id].kind;
+
+  // 진행 순서
   DECK.slide({
-    id: 'c4-flow', title: '과제와 흐름', chapter: CH, harness: 'naming',
-    notes: '부서 하나의 생산·접수 문서 제목을 스크립트가 군집으로 줄이고, 에이전트 세 종류가 해석(sonnet 4건 병렬) → 이름 제안(opus) → 검토(opus) 순서로 처리한다.\n검토 에이전트(naming-reviewer)는 Edit 도구가 없어 제안을 직접 고치지 못한다. 통과·수정필요·기각만 적어 돌려보내고, 수정과 재검토는 1회로 정했다. 그래도 남은 지적은 제안표에 그대로 남겨 사람이 판단한다.\n자기 분류기준표가 있는 부서는 대조 모드, 기준표를 빌려 쓰는 부서는 초안 모드로 처리한다. 이름 규칙은 기존 이름 699개와 담당부서 의견 185종에서 뽑았다(평균 10.5자, "관리"로 끝나는 이름 83%).\n출처: kac-unit-task-naming/.claude/skills/unit-task-naming/SKILL.md, unit-task-naming-rules/SKILL.md, references/naming-conventions.md, .claude/agents/*.md',
+    id: 'c4-flow', title: '문서 제목을 묶어 읽고 단위업무 이름을 다시 짓는다', chapter: CH, harness: 'naming',
+    notes: '부서 하나가 만들고 받은 문서의 제목을 스크립트(prepare_dept.py)가 비슷한 것끼리 묶는다. 묶음 해석 에이전트(work-cluster-analyst, sonnet, 묶음 30개씩 4건을 동시에 처리)가 묶음마다 어떤 업무인지 읽고, 이름 제안 에이전트(unit-task-namer, opus)가 단위업무마다 유지·개명·통합·폐지 검토·신설을 정한다.\n검토 에이전트(naming-reviewer, opus)는 제안을 직접 고칠 수 없다. 통과·수정필요·기각만 적어 돌려보낸다. 수정과 재검토는 한 번으로 정했고, 그래도 남은 지적은 제안표의 검토 의견 열에 그대로 남겨 담당 부서가 정한다. 제안표(xlsx·csv)와 요약은 스크립트(build_report.py)가 만든다.\n화면의 숫자는 감사실 실행 값이다. 제안 23건 가운데 1회차 검토에서 4건이 수정필요였고(P007, P013, P018, P020), 고친 뒤 2회차에 통과 21건, 수정필요 2건(P013, P020)이 되었다.\n출처: kac-unit-task-naming/.claude/skills/unit-task-naming/SKILL.md, .claude/agents/*.md, _workspace/20261117-감사실/감사실/review_v1.json·review.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: '과제 · 단위업무명 추천·제안', title: '문서 제목을 묶어 읽고 단위업무 이름을 다시 짓는다',
-        sub: '생산현황 문서 제목으로 부서의 업무 묶음을 찾고, 기존 단위업무 이름이 그 문서를 가리키는지 확인한다.' });
-      const Y = 494;   // 흐름 중심선
-      d.svg = K.svg(root);
-      const steps = [['1', '준비', 120], ['2', '해석 · 병렬', 400], ['3', '제안', 840], ['4', '검토', 1210], ['5', '제안표', 1580]];
-      d.steps = steps.map(([n, t, x]) => {
-        const e = K.at(root, '', { x, y: 342 }, `<span class="mono" style="color:var(--blue);font-weight:700;margin-right:10px">${n}</span>${t}`);
-        e.style.cssText += ';font-size:22px;font-weight:700;color:var(--ink-2)';
-        return e;
-      });
-      d.prep = K.script(root, { name: 'prepare_dept.py', cap: '공통 수신을 떼고 제목을 군집으로 묶는다', x: 120, y: Y - 54, w: 216 });
-      // 해석 에이전트: part 4개를 병렬로 맡는다
-      const AY = Y - 116;
-      d.ac = K.at(root, 'agent', { x: 400, y: AY, w: 370, h: 232 });
-      h('div', 'nm', d.ac, 'work-cluster-analyst');
-      h('div', 'md sonnet', d.ac, 'sonnet');
-      const parts = [['part_01', '군집 30'], ['part_02', '군집 30'], ['part_03', '군집 30'], ['part_04', '부서공통 추정 7']];
-      d.parts = parts.map((pt, i) => {
-        const r = K.at(d.ac, '', { x: 16, y: 56 + i * 42, w: 334, h: 34 });
-        r.style.cssText += ';border-radius:7px;background:var(--paper-2);overflow:hidden';
-        const fill = K.at(r, '', { x: 0, y: 0, w: 334, h: 34 });
-        fill.style.background = 'rgba(47,123,255,.16)';
-        const a = K.at(r, 'mono', { x: 12, y: 6 }, pt[0]); a.style.cssText += ';font-size:19px;color:var(--blue-2);font-weight:500';
-        const b = K.at(r, '', { r: 12, y: 5 }, pt[1]); b.style.cssText += ';font-size:19px;font-weight:600;color:var(--ink-2)';
-        return { r, fill, y: AY + 56 + i * 42 + 17 };
-      });
-      d.namer = K.agent(root, { name: 'unit-task-namer', role: '이름 제안·수정', model: 'opus', kind: 'make', x: 840, y: Y - 80, w: 300,
-        note: '단위업무마다 유지·개명·통합·폐지 검토·신설을 정한다' });
-      d.rev = K.agent(root, { name: 'naming-reviewer', role: '제안 검토', model: 'opus', kind: 'check', x: 1210, y: Y - 80, w: 300,
-        note: '통과·수정필요·기각만 적고 제안은 고치지 못한다' });
-      d.build = K.script(root, { name: 'build_report.py', cap: '제안표 xlsx·csv와 요약.md', x: 1580, y: Y - 54, w: 220 });
-      // 연결선
-      d.fan = d.parts.map(pt => {
-        const p = K.path(d.svg, `M 336 ${Y} C 370 ${Y}, 366 ${pt.y}, 400 ${pt.y}`, { color: C.blue, width: 2.5 });
-        K.dots(d.svg, p, 1, { r: 5 });
-        return p;
-      });
-      d.join = d.parts.map(pt => {
-        const p = K.path(d.svg, `M 770 ${pt.y} C 806 ${pt.y}, 804 ${Y}, 840 ${Y}`, { color: C.blue, width: 2.5 });
-        K.dots(d.svg, p, 1, { r: 5 });
-        return p;
-      });
-      d.p3 = K.path(d.svg, [[1140, Y], [1208, Y]], { color: C.blue, width: 2.5, arrow: true });
-      K.dots(d.svg, d.p3, 1, { r: 5 });
-      d.p4 = K.path(d.svg, [[1510, Y], [1578, Y]], { color: C.blue, width: 2.5, arrow: true });
-      K.dots(d.svg, d.p4, 1, { r: 5 });
-      const LY = Y + 132;
-      d.loop = K.path(d.svg, [[1360, Y + 82], [1360, LY], [990, LY], [990, Y + 84]], { color: C.warn, width: 2.5, arrow: true, radius: 16 });
-      K.dots(d.svg, d.loop, 1, { r: 6, color: C.warn });
-      d.loopLab = K.at(root, '', { x: 990, y: LY + 12, w: 370 }, '수정필요 → 고쳐서 다시 검토(1회)');
-      d.loopLab.style.cssText += ';font-size:21px;font-weight:700;color:#965A00;text-align:center';
-      // 아래 왼쪽: 두 모드
-      d.mt = K.table(root, {
-        x: 120, y: 712, w: 810,
-        cols: [{ label: '', w: 120 }, { label: '대조 모드', w: 345 }, { label: '초안 모드', w: 345 }],
-        rows: [
-          ['대상 부서', '자기 분류기준표가 있는 부서', '기준표를 빌려 쓰는 부서(제주·김해 운영단, 지방공항 등)'],
-          ['하는 일', '기존 단위업무마다 유지·개명·통합·폐지 검토를 정하고, 기준표에 없는 업무는 신설로 낸다', '빌린 기준표는 참고만 하고 단위업무 목록 초안을 새로 짓는다'],
-        ],
-      });
-      const ths = d.mt.head.querySelectorAll('.th');
-      ths[1].innerHTML = '대조 모드 <span style="display:inline-block;margin-left:10px;font-size:19px;font-weight:700;color:#0B7A52;background:var(--ok-soft);border:1.5px solid rgba(25,169,116,.45);border-radius:6px;padding:2px 10px">이번 실행 · 감사실</span>';
-      [ths[1], ths[2]].forEach(t => { t.style.fontSize = '24px'; t.style.color = 'var(--ink)'; t.style.fontWeight = '800'; });
-      d.mt.el.querySelectorAll('.td').forEach((td, i) => {
-        td.style.fontSize = '21px'; td.style.padding = '10px 14px'; td.style.lineHeight = '1.42';
-        if (i % 3 === 0) { td.style.fontWeight = '700'; td.style.color = 'var(--mute)'; td.style.fontSize = '20px'; }
-      });
-      // 아래 오른쪽: 이름 짓는 규칙
-      d.rh = K.at(root, '', { x: 990, y: 708 }, '이름 짓는 규칙');
-      d.rh.style.cssText += ';font-size:26px;font-weight:800;letter-spacing:-0.02em';
-      const segs = [['대상', '공직윤리', 150], ['행위 1~3개', '신고·점검·조치', 250], ['끝말', '관리', 100]];
-      let sx = 990;
-      d.segs = segs.map((sg, i) => {
-        const b = K.at(root, '', { x: sx, y: 756, w: sg[2], h: 86 });
-        b.style.cssText += ';border:2px solid var(--rule-2);border-radius:10px;background:var(--paper-3);box-sizing:border-box;padding:8px 14px';
-        const l = h('div', '', b, sg[0]); l.style.cssText = 'font-size:19px;font-weight:600;color:var(--mute)';
-        const v = h('div', '', b, sg[1]); v.style.cssText = 'font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-top:2px;white-space:nowrap';
-        const plus = i < 2 ? K.at(root, '', { x: sx + sg[2] + 8, y: 780 }, '+') : null;
-        if (plus) plus.style.cssText += ';font-size:28px;font-weight:700;color:var(--mute)';
-        sx += sg[2] + 36;
-        return { b, plus };
-      });
-      d.segNote = K.at(root, 'small', { x: sx - 10, y: 790, w: 1800 - sx + 10 }, '감사실 기존 이름 예');
-      d.segNote.style.fontSize = '19px';
-      const rules = [
-        '나란히 놓는 낱말은 가운뎃점(·)으로 잇고 ‘및’은 쓰지 않는다',
-        '연도·차수·업체명·괄호, 알림·제출 같은 처리 행위는 넣지 않는다',
-        '같은 부서의 다른 단위업무와 겹치지 않는 이름을 짓는다',
+      d.T = K.title(root, { w: TW, kicker: '단위업무명 추천 · 진행 순서', title: '문서 제목을 묶어 읽고 단위업무 이름을 다시 짓는다' });
+      const BASE = 710, LANE = 314, SAY = 388;
+      const A = [
+        { kind: 'script', name: '스크립트', job: '제목이 비슷한<br>문서를 묶는다', x: 120, w: 200 },
+        { id: 'work-cluster-analyst', job: '묶음이 어떤 업무인지<br>읽는다', x: 470, w: 200 },
+        { id: 'unit-task-namer', job: '이름을 제안한다', x: 820, w: 200 },
+        { id: 'naming-reviewer', job: '통과·수정필요를 적는다', x: 1170, w: 200 },
+        { kind: 'human', name: '담당 부서', job: '제안표를 보고<br>정한다', x: 1565, w: 150 },
       ];
-      d.rules = rules.map((r, i) => {
-        const e = K.at(root, '', { x: 990, y: 864 + i * 38, w: 810 }, `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:14px;vertical-align:3px"></span>${r}`);
-        e.style.cssText += ';font-size:22px;color:var(--ink-2);white-space:nowrap';
-        return e;
-      });
+      d.svg = K.svg(root);
+      d.act = A.map(a => actor(root, Object.assign({ y: BASE - a.w * K.AGR[kindOf(a)], jobW: 320 }, a)));
+      d.arr = A.slice(0, -1).map((a, i) => K.path(d.svg, [[a.x + a.w + 16, 590], [A[i + 1].x - 16, 590]], { color: C.ink2, width: 4, arrow: true }));
+      // 수정필요면 이름 제안 에이전트로 돌아간다
+      const rx = d.act[3].cx, nx = d.act[2].cx;
+      d.back = K.path(d.svg, [[rx, 828], [rx, 886], [nx, 886], [nx, 828]], { color: C.warn, width: 5, arrow: true, radius: 22 });
+      d.backLab = txt(root, '수정필요면 고쳐서 한 번 더 검토한다', { x: nx - 200, y: 904, w: rx - nx + 400 }, 'text-align:center;font:800 30px/1.2 var(--sans);letter-spacing:-0.02em;color:#965A00');
+      d.doc = K.doc(root, '', { x: 0, y: LANE, w: 290 });
+      d.doc.style.textAlign = 'center';
+      d.pos = d.act.map(a => [a.cx - 145, LANE]);
+      const say = (i, t, cls) => { const e = K.say(root, t, { x: d.act[i].cx - 190, y: SAY, w: 380 }, cls, 'b'); e.style.textAlign = 'center'; return e; };
+      d.s1 = say(1, '어떤 업무인지 읽었습니다', 'blue');
+      d.s2 = say(2, '23건을 제안합니다', 'blue');
+      d.s3 = say(3, '4건은 수정필요입니다', 'warn');
+      d.s4 = say(2, '고쳤습니다', 'blue');
+      d.s5 = say(3, '2건이 남았습니다', 'warn');
     },
     render(lt, d) {
       d.T.render(lt);
-      d.steps.forEach((e, i) => K.rise(e, lt, 0.45 + i * 0.12, { y: 10 }));
-      K.rise(d.prep, lt, 0.5, { x: -20, y: 0 });
-      d.fan.forEach((p, i) => K.draw(p, lt, 0.7 + i * 0.05, 0.4, { speed: 70 }));
-      K.pop(d.ac, lt, 0.75);
-      d.parts.forEach((pt, i) => {
-        K.rise(pt.r, lt, 0.85 + i * 0.06, { x: -16, y: 0, blur: 0 });
-        // 처리 중 표시: part 마다 다른 속도로 채워졌다 비워진다
-        const per = 2.2 + i * 0.35, loc = lt < 1.4 ? -1 : ((lt - 1.4 + i * 0.4) % per) / per;
-        const f = loc < 0 ? 0 : loc < 0.75 ? ease.inOutCubic(loc / 0.75) : 1 - (loc - 0.75) / 0.25;
-        pt.fill.style.transform = `scaleX(${f.toFixed(3)})`;
-        pt.fill.style.transformOrigin = '0 50%';
-      });
-      d.join.forEach((p, i) => K.draw(p, lt, 1.0 + i * 0.05, 0.4, { speed: 70 }));
-      K.pop(d.namer, lt, 1.1);
-      K.draw(d.p3, lt, 1.25, 0.3, { speed: 60 });
-      K.pop(d.rev, lt, 1.35);
-      K.draw(d.p4, lt, 1.5, 0.3, { speed: 60 });
-      K.rise(d.build, lt, 1.6, { x: 20, y: 0 });
-      K.draw(d.loop, lt, 1.6, 0.6, { speed: 160 });
-      K.rise(d.loopLab, lt, 1.9, { y: 10 });
-      d.mt.render(lt, 1.9, 0.1);
-      K.rise(d.rh, lt, 2.0, { y: 10 });
-      const k = K.cycle(lt, 3.2, 1.6, 3);
-      d.segs.forEach((sg, i) => {
-        K.pop(sg.b, lt, 2.1 + i * 0.1);
-        if (sg.plus) K.rise(sg.plus, lt, 2.15 + i * 0.1, { y: 0 });
-        const on = k === i;
-        RH.set(sg.b, 'borderColor', on ? C.blue : 'rgba(27,42,74,.28)');
-        RH.set(sg.b, 'background', on ? 'rgba(47,123,255,.06)' : '#FFFAF2');
-      });
-      K.rise(d.segNote, lt, 2.4, { x: -10, y: 0 });
-      d.rules.forEach((e, i) => K.rise(e, lt, 2.4 + i * 0.1, { y: 10 }));
+      d.act.forEach((a, i) => a.render(lt, 0.5 + i * 0.16));
+      d.arr.forEach((p, i) => K.draw(p, lt, 0.8 + i * 0.16, 0.3));
+      K.draw(d.back, lt, 1.6, 0.6); K.rise(d.backLab, lt, 1.9, { y: 10 });
+      // 문서 묶음이 차례로 지나간다. 검토에서 수정필요가 나오면 한 번 돌아갔다가 다시 온다.
+      const L = K.loop(lt, 2.6, [0.9, 1.3, 0.8, 1.4, 0.8, 1.4, 0.8, 1.5, 1.0, 1.2, 0.8, 1.5, 1.2]);
+      const st = L.i, u = L.u, P = d.pos;
+      if (lt > 2.3) {
+        d.act[0].act(lt, st === 1); d.act[1].act(lt, st === 3); d.act[2].act(lt, st === 5 || st === 9);
+        d.act[3].act(lt, st === 7 || st === 11); d.act[4].act(lt, st === 12 && u > 0.6);
+      }
+      show(d.s1, st === 3 && u > 0.3); show(d.s2, st === 5 && u > 0.3); show(d.s3, st === 7 && u > 0.3);
+      show(d.s4, st === 9 && u > 0.3); show(d.s5, st === 11 && u > 0.3);
+      d.back.setAttribute('stroke-width', st === 8 ? 8 : 5);
+      if (st < 0) { d.doc.style.opacity = '0'; return; }
+      const label = st < 1 || (st === 1 && u < 0.5) ? '문서 8,978건' : st < 5 || (st === 5 && u < 0.3) ? '묶음 90개'
+        : st < 7 || (st === 7 && u < 0.3) ? '제안 23건' : st < 9 || (st === 9 && u < 0.3) ? '수정필요 4건'
+        : st < 11 || (st === 11 && u < 0.3) ? '고친 제안 23건' : '통과 21 · 수정필요 2';
+      if (d.doc.textContent !== label) d.doc.textContent = label;
+      const warn = (st === 7 && u >= 0.3) || st === 8 || (st === 9 && u < 0.3) || (st === 11 && u >= 0.3) || st === 12;
+      d.doc.className = 'doc' + (warn ? ' warn' : '');
+      const hold = p => K.travel(d.doc, 1, 0, 1, p, p);
+      if (st === 0) K.travel(d.doc, u, 0, 1, [P[0][0] - 110, P[0][1]], P[0], { arc: 0 });
+      else if (st === 1) hold(P[0]);
+      else if (st === 2) K.travel(d.doc, u, 0, 1, P[0], P[1], { arc: 24 });
+      else if (st === 3) hold(P[1]);
+      else if (st === 4) K.travel(d.doc, u, 0, 1, P[1], P[2], { arc: 24 });
+      else if (st === 5) hold(P[2]);
+      else if (st === 6) K.travel(d.doc, u, 0, 1, P[2], P[3], { arc: 24 });
+      else if (st === 7) hold(P[3]);
+      else if (st === 8) K.travel(d.doc, u, 0, 1, P[3], P[2], { arc: 24 });
+      else if (st === 9) hold(P[2]);
+      else if (st === 10) K.travel(d.doc, u, 0, 1, P[2], P[3], { arc: 24 });
+      else if (st === 11) hold(P[3]);
+      else K.travel(d.doc, clamp(u / 0.6), 0, 1, P[3], P[4], { arc: 24 });
+      d.doc.style.opacity = (st === 0 ? clamp(u / 0.25) : st === 12 ? clamp((1 - u) / 0.15) : 1).toFixed(3);
     },
   });
 
-  // 36. 감사실 실행 결과
-  // 상위 군집 90개의 문서 수(문서 수 순)와 처리(k 유지 근거, r 개명 근거, h 보류). 출처 clusters.json, proposals.json
-  const CL = [237,193,193,170,163,155,154,133,126,118,85,84,70,70,70,67,67,65,65,63,60,59,59,55,52,50,49,48,46,46,45,43,43,43,42,41,39,39,39,38,38,37,37,37,36,36,36,35,35,35,34,33,32,29,29,28,27,27,27,27,26,25,25,24,24,23,23,23,23,23,23,23,23,23,23,22,22,22,22,21,20,20,20,20,20,20,20,19,18,18];
-  const CT = 'kkkkkkrkkhkkhkkkkkkkrrkkkkkkkrkkkkkhkkkkkkkkkkkkkkkhrkkhhrhkhhkkkhkkkkkhkkkkkkkkkkkkrkhhkh';
+  // 이름 짓는 규칙
   DECK.slide({
-    id: 'c4-run', title: '감사실 실행 결과', chapter: CH, harness: 'naming',
-    notes: '감사실 문서 8,978건에서 8개 이상 부서가 같은 제목으로 받은 공통 수신 2,152건을 빼고, 출장·지출처럼 부서공통 사무로 보이는 193건(묶음 7개)을 따로 뗐다. 남은 6,633건을 제목이 비슷한 것끼리 묶어 문서가 많은 상위 군집 90개(4,597건, 69%)를 에이전트가 해석했다.\n소규모 군집 2,036건은 이번에 보지 않았다. 그래서 "문서가 없다"는 판단은 폐지가 아니라 통합·폐지 검토로만 낸다.\n기존 단위업무 23개를 모두 유지 17, 개명 3, 통합·폐지 검토 3으로 정했고 신설은 없다. 보류 21개는 부서공통·혼합·타부서 소관 수신 군집 14개와 부서공통 추정 묶음 7개다. 검토 1회차에서 4건이 수정필요였고, 고친 뒤 2회차에 2건(P013, P020)이 남았다.\n출처: kac-unit-task-naming/output/20261117-감사실/요약.md, _workspace/20261117-감사실/manifest.json, 감사실/clusters.json·proposals.json·review_v1.json·review.json',
+    id: 'c4-rule', title: '이름은 대상, 행위, 관리 순서로 짓는다', chapter: CH, harness: 'naming',
+    notes: '단위업무 이름은 「대상 + 행위 1~3개 + 관리」로 짓는다. 화면의 예는 감사실 청렴감찰부가 지금 쓰는 이름(U0123 공직윤리 신고·점검·조치관리)이다.\n규칙은 분류기준표 최종(안)의 기존 이름 699개와 담당부서 의견 185종에서 뽑았다. 기존 이름은 평균 10.5자이고 577개(83%)가 "관리"로 끝난다.\n화면에서 뺀 규칙: 나란히 놓는 낱말은 가운뎃점으로 잇고 ‘및’은 쓰지 않는다. 연도·차수·업체명·괄호와 알림·제출·요청 같은 문서 처리 행위는 넣지 않는다. 같은 부서의 다른 단위업무, 기록물철 이름과 겹치지 않게 짓는다. 10자 안팎, 최대 25자.\n출처: kac-unit-task-naming/.claude/skills/unit-task-naming-rules/SKILL.md, references/naming-conventions.md, _workspace/20261117-감사실/감사실/existing_units.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: '감사실 실행 결과 · 대조 모드', title: '문서 8,978건을 군집 90개로 줄여 읽었다' });
-      // 캔버스(점·막대)
+      d.T = K.title(root, { w: TW, kicker: '단위업무명 추천 · 이름 짓는 규칙', title: '이름은 대상, 행위, 관리 순서로 짓는다' });
+      d.top = txt(root, '감사실이 지금 쓰는 이름', { x: 120, y: 322, w: 1680 }, 'text-align:center;font:600 28px/1.2 var(--sans);color:var(--mute)');
+      d.row = K.at(root, '', { x: 120, y: 384, w: 1680 });
+      d.row.style.cssText += ';display:flex;justify-content:center;align-items:flex-start;gap:26px';
+      const segs = [['공직윤리', '대상', C.blue], ['신고·점검·조치', '행위 1~3개', '#0B7A52'], ['관리', '관리', '#965A00']];
+      d.segs = segs.map(sg => {
+        const b = h('div', '', d.row); b.style.cssText = 'text-align:center';
+        const nm = h('div', '', b, sg[0]); nm.style.cssText = 'font:850 122px/1.12 var(--sans);letter-spacing:-0.03em;white-space:nowrap';
+        const bar = h('div', '', b); bar.style.cssText = `height:10px;border-radius:5px;margin-top:14px;background:${sg[2]};transform-origin:0 50%`;
+        const lab = h('div', '', b, sg[1]); lab.style.cssText = `margin-top:16px;font:800 42px/1.2 var(--sans);letter-spacing:-0.02em;color:${sg[2]};white-space:nowrap`;
+        return { b, nm, bar, lab, c: sg[2] };
+      });
+      const caps = ['무엇을 다루는 업무인지 먼저 쓴다', '하는 일을 가운뎃점으로 이어 쓴다', '기존 이름 699개 중 577개가 ‘관리’로 끝난다'];
+      d.caps = caps.map(c => txt(root, c, { x: 120, y: 730, w: 1680 }, 'text-align:center;font:800 50px/1.2 var(--display);letter-spacing:-0.02em;color:var(--ink);opacity:0'));
+      d.rule = txt(root, '연도, 업체명, 괄호는 이름에 넣지 않는다', { x: 120, y: 890, w: 1680 }, 'text-align:center;font:600 30px/1.2 var(--sans);color:var(--ink-2)');
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      K.rise(d.top, lt, 0.4, { y: 10 });
+      K.rise(d.rule, lt, 1.9, { y: 10 });
+      // 세 부분을 차례로 짚는다
+      const L = K.loop(lt, 2.4, [1.8, 1.8, 1.8]);
+      d.segs.forEach((sg, i) => {
+        const p = K.rise(sg.b, lt, 0.5 + i * 0.3, { y: 30 });
+        sg.bar.style.transform = `scaleX(${prog(lt, 0.9 + i * 0.3, 0.4, ease.outCubic).toFixed(4)})`;
+        const on = L.i < 0 || L.i === i;
+        const k = L.i === i ? Math.min(prog(L.u, 0, 0.14), 1) : 0;
+        if (p >= 1) sg.b.style.opacity = on ? '1' : '0.6';
+        sg.nm.style.color = L.i === i ? sg.c : C.ink;
+        if (p >= 1) sg.b.style.transform = `translateY(${(-8 * k).toFixed(1)}px)`;
+      });
+      d.caps.forEach((c, i) => {
+        const v = L.i === i ? Math.min(prog(L.u, 0, 0.16), 1 - prog(L.u, 0.9, 0.1)) : 0;
+        c.style.opacity = v.toFixed(3);
+        c.style.transform = `translateY(${((1 - Math.min(1, prog(L.u, 0, 0.16))) * 14).toFixed(1)}px)`;
+      });
+    },
+  });
+
+  // 기준표가 있는 부서와 없는 부서
+  DECK.slide({
+    id: 'c4-mode', title: '부서에 기준표가 있는지에 따라 하는 일이 다르다', chapter: CH, harness: 'naming',
+    notes: '분류기준표가 있는 부서(하네스 안에서는 대조라고 부른다)는 기존 단위업무를 하나도 빼지 않고 유지·개명·통합·폐지 검토 가운데 하나로 정하고, 기준표에 없는 업무가 문서에서 보이면 신설로 낸다. 이번 감사실 실행이 이 경우다. 왼쪽의 이름 셋은 감사실 제안표의 실제 값이다(P018 유지, P020 개명, P010 통합·폐지 검토). 감사실에서 신설은 0건이었다.\n기준표가 없어 다른 공항 기준표를 적용하는 부서, 없어진 부서(현재 부서로 추정)는 단위업무 목록 초안을 새로 짓는다(하네스 안에서는 초안이라고 부른다). 이때 다른 부서 기준표는 참고만 하고, 같은 업무가 있으면 그 이름을 쓴다. 이 경우는 이번에 실행하지 않아 화면에 실제 이름을 넣지 않았다.\n출처: kac-unit-task-naming/.claude/skills/unit-task-naming-rules/SKILL.md 「용어와 자료」「제안 유형과 조건」, output/20261117-감사실/단위업무_제안표.csv',
+    setup(root, d) {
+      d.T = K.title(root, { w: TW, kicker: '단위업무명 추천 · 부서마다 다른 일', title: '부서에 기준표가 있는지에 따라 하는 일이 다르다' });
+      const panel = (x, head, sub, tag) => {
+        const p = K.at(root, '', { x, y: 300, w: 810, h: 640 });
+        p.style.cssText += ';box-sizing:border-box;border:2px solid var(--rule-2);border-radius:20px;background:var(--paper-3)';
+        txt(p, head, { x: 40, y: 30 }, 'font:900 46px/1.2 var(--display);letter-spacing:-0.03em;white-space:nowrap');
+        if (tag) { const c = K.chip(p, tag, 'ok lg', { r: 36, y: 32 }); c.style.fontSize = '26px'; }
+        txt(p, sub, { x: 40, y: 100 }, 'font:700 32px/1.3 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap');
+        return p;
+      };
+      d.pl = panel(120, '기준표가 있는 부서', '기존 이름을 하나씩 판단한다', '이번 실행 · 감사실');
+      d.pr = panel(990, '기준표가 없는 부서', '이름 목록을 처음부터 새로 짓는다');
+      const L = [['공직윤리 신고·점검·조치관리', '유지', 'ok'], ['종합감사 관리', '개명', 'blue'], ['성과감사 관리', '통합·폐지 검토', 'warn'], ['기준표에 없는 업무', '신설', 'ghost']];
+      d.lrows = L.map((r, i) => {
+        const row = K.at(d.pl, '', { x: 28, y: 186 + i * 108, w: 750, h: 92 });
+        row.style.cssText += ';border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box';
+        const nm = h('div', '', row, r[0]);
+        nm.style.cssText = `font:700 32px/1.2 var(--sans);letter-spacing:-0.02em;white-space:nowrap;color:${i === 3 ? 'var(--mute)' : 'var(--ink)'}`;
+        const chip = K.chip(row, r[1], r[2] + ' lg'); chip.style.fontSize = '28px'; chip.style.fontWeight = '800'; chip.style.flex = 'none';
+        return { row, chip };
+      });
+      d.rrows = [0, 1, 2].map(i => {
+        const row = K.at(d.pr, '', { x: 28, y: 186 + i * 108, w: 750, h: 92 });
+        row.style.cssText += ';border-radius:14px;display:flex;align-items:center;gap:22px;padding:0 18px;box-sizing:border-box';
+        const src = h('div', '', row, '문서 묶음');
+        src.style.cssText = 'font:700 30px/1 var(--sans);color:var(--mute);border:2.5px dashed var(--rule-2);border-radius:12px;padding:16px 26px;white-space:nowrap';
+        const ar = h('div', '', row, '→'); ar.style.cssText = 'font:700 36px/1 var(--sans);color:var(--ink-2)';
+        const out = h('div', '', row, '새 단위업무 이름');
+        out.style.cssText = 'font:700 32px/1 var(--sans);letter-spacing:-0.02em;color:var(--ink);border:2.5px solid var(--blue);border-radius:12px;padding:16px 26px;white-space:nowrap;background:#fff';
+        const chip = K.chip(row, '초안', 'blue lg'); chip.style.fontSize = '28px'; chip.style.fontWeight = '800'; chip.style.flex = 'none';
+        return { row, out, chip, ar };
+      });
+      d.rnote = txt(d.pr, '다른 공항 기준표는 참고만 한다', { x: 46, y: 538 }, 'font:600 28px/1.2 var(--sans);color:var(--ink-2);white-space:nowrap');
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      K.rise(d.pl, lt, 0.5, { y: 24 }); K.rise(d.pr, lt, 0.7, { y: 24 });
+      K.rise(d.rnote, lt, 1.9, { y: 8 });
+      // 왼쪽은 이름마다 판단이 붙고, 오른쪽은 묶음마다 새 이름이 나온다
+      const L = K.loop(lt, 2.4, [1.5, 1.5, 1.5, 1.5]);
+      d.lrows.forEach((r, i) => {
+        K.rise(r.row, lt, 0.9 + i * 0.1, { x: -16, y: 0, blur: 0 });
+        const now = L.i === i;
+        RH.set(r.row, 'background', now ? 'rgba(47,123,255,.10)' : 'transparent');
+        r.chip.style.opacity = prog(lt, 1.3 + i * 0.12, 0.2).toFixed(3);
+        r.chip.style.transform = `scale(${now ? lerp(1.3, 1, prog(L.u, 0.05, 0.25, ease.outCubic)).toFixed(4) : 1})`;
+      });
+      d.rrows.forEach((r, i) => {
+        K.rise(r.row, lt, 1.1 + i * 0.1, { x: 16, y: 0, blur: 0 });
+        const now = L.i === i;
+        RH.set(r.row, 'background', now ? 'rgba(47,123,255,.10)' : 'transparent');
+        const a = prog(lt, 1.5 + i * 0.12, 0.2).toFixed(3);
+        [r.out, r.chip, r.ar].forEach(e => { e.style.opacity = a; });
+        r.chip.style.transform = `scale(${now ? lerp(1.3, 1, prog(L.u, 0.05, 0.25, ease.outCubic)).toFixed(4) : 1})`;
+      });
+    },
+  });
+
+  // 문서 8,978건 → 묶음 90개
+  // 상위 묶음 90개의 문서 수(문서 수 순). 출처 clusters.json
+  const CL = [237,193,193,170,163,155,154,133,126,118,85,84,70,70,70,67,67,65,65,63,60,59,59,55,52,50,49,48,46,46,45,43,43,43,42,41,39,39,39,38,38,37,37,37,36,36,36,35,35,35,34,33,32,29,29,28,27,27,27,27,26,25,25,24,24,23,23,23,23,23,23,23,23,23,23,22,22,22,22,21,20,20,20,20,20,20,20,19,18,18];
+  DECK.slide({
+    id: 'c4-run', title: '감사실 문서 8,978건을 묶음 90개로 줄였다', chapter: CH, harness: 'naming',
+    notes: '감사실 문서 8,978건에서 8개 이상 부서가 같은 제목으로 받은 공문(공통 수신) 2,152건을 빼고, 출장·지출처럼 모든 부서가 하는 사무로 보이는 193건(묶음 7개)을 따로 뗐다. 남은 6,633건을 제목이 비슷한 것끼리 묶어, 문서가 많은 상위 묶음 90개(4,597건, 6,633건의 69%)만 에이전트가 읽었다.\n작은 묶음의 문서 2,036건은 이번에 읽지 않았다. 그래서 "문서가 없다"는 판단은 폐지가 아니라 통합·폐지 검토로만 낸다.\n막대는 묶음 90개를 문서 수 순서로 놓은 것이다. 가장 큰 묶음(c001)은 237건이고 가장 작은 묶음(c090)은 18건이다. 화면의 제목 예는 c001(감사원 감사자료 제출 47건), c002(부패영향평가 요청 35건), c007(처리 전말 내역서 제출 77건)의 대표 제목이다.\n묶음 90개 가운데 69개는 유지 판단의 근거, 7개는 개명 판단의 근거로 쓰였고 14개는 보류했다(모든 부서가 하는 사무, 여러 업무가 섞인 묶음, 다른 부서가 주관하는 일을 통보받은 문서).\n스크립트: prepare_dept.py. 출처: kac-unit-task-naming/output/20261117-감사실/요약.md, _workspace/20261117-감사실/manifest.json, 감사실/clusters.json·proposals.json',
+    setup(root, d) {
+      d.T = K.title(root, { w: TW, kicker: '감사실 실행 결과 · 문서 묶기', title: '감사실 문서 8,978건을 묶음 90개로 줄였다' });
       const CX = 100, CY = 280, CW = 1720, CHh = 720;
       const cv = h('canvas', '', root);
       css(cv, { position: 'absolute', left: CX + 'px', top: CY + 'px', width: CW + 'px', height: CHh + 'px' });
@@ -325,130 +372,81 @@
       d.ctx = cv.getContext('2d');
       d.ctx.setTransform(2, 0, 0, 2, -CX * 2, -CY * 2);
       d.clip = [CX, CY, CW, CHh];
-      // 점 배치
-      const FX = 120, FY = 380, COLS = 80, P = 3.5;
-      const cnt = [2152, 193, 2036, 4597];   // 공통 수신, 부서공통 추정, 소규모 군집, 상위 군집
+      // 점 배치(점 하나 = 문서 한 건)
+      const FX = 120, FY = 456, COLS = 80, P = 3.6;
+      const cnt = [2152, 193, 2036, 4597];   // 공통 수신, 공통 사무, 작은 묶음, 큰 묶음 90개
       const N = cnt.reduce((a, b) => a + b, 0);   // 8,978
-      const gaps = [34, 60, 34];
-      d.blockY = [];
+      const GAP = 26;
+      d.geo = { FX, COLS, P };
+      d.blockY = []; d.blockH = cnt.map(c => Math.ceil(c / COLS) * P);
       let by = FY;
-      cnt.forEach((c, i) => { d.blockY.push(by); by += Math.ceil(c / COLS) * P + (gaps[i] || 0); });
-      d.blockH = cnt.map(c => Math.ceil(c / COLS) * P);
-      // 칸 섞기(결정적)
+      cnt.forEach((c, i) => { d.blockY.push(by); by += d.blockH[i] + GAP; });
       const order = Array.from({ length: N }, (_, i) => i).sort((a, b) => K.rand(a, 11) - K.rand(b, 11));
-      const BX = 762, BASE = 690, HP = 290 / 237;
-      d.bar = { BX, BASE, HP, PITCH: 11.5, W: 8 };
+      const B = d.bar = { BX: 846, BASE: 800, HP: 310 / 237, PITCH: 10.6, W: 7.4 };
+      const ROWS = Math.ceil(N / COLS);
       const D = d.D = {
         ix: new Float32Array(N), iy: new Float32Array(N), sx: new Float32Array(N), sy: new Float32Array(N),
-        tx: new Float32Array(N), ty: new Float32Array(N), cat: new Uint8Array(N), j: new Int16Array(N),
+        tx: new Float32Array(N), ty: new Float32Array(N), cat: new Uint8Array(N),
         tA: new Float32Array(N), tS: new Float32Array(N), tF: new Float32Array(N), arc: new Float32Array(N),
       };
-      let i = 0;
+      let i = 0, cj = 0;
       const bars = CL.map(() => 0);
-      let cj = 0;
       cnt.forEach((c, cat) => {
         for (let q = 0; q < c; q++, i++) {
           const cell = order[i], row = Math.floor(cell / COLS), col = cell % COLS;
           D.ix[i] = FX + col * P; D.iy[i] = FY + row * P;
           D.sx[i] = FX + (q % COLS) * P; D.sy[i] = d.blockY[cat] + Math.floor(q / COLS) * P;
           D.cat[i] = cat;
-          D.tA[i] = 0.3 + (row / 113) * 0.45 + K.rand(i, 3) * 0.08;
+          D.tA[i] = 0.3 + (row / ROWS) * 0.45 + K.rand(i, 3) * 0.08;
           D.tS[i] = 0.95 + cat * 0.08 + K.rand(i, 5) * 0.2;
-          D.j[i] = -1;
           if (cat === 3) {
             while (bars[cj] >= CL[cj]) cj++;
             const k = bars[cj]++;
-            D.j[i] = cj;
-            D.tx[i] = BX + cj * 11.5;
-            D.ty[i] = BASE - (k + 1) * HP;
+            D.tx[i] = B.BX + cj * B.PITCH;
+            D.ty[i] = B.BASE - (k + 1) * B.HP;
             D.tF[i] = 1.75 + (cj / 90) * 0.4 + K.rand(i, 9) * 0.15;
             D.arc[i] = 30 + K.rand(i, 13) * 70;
           }
         }
       });
       d.N = N;
-      // 왼쪽 글
-      d.head = K.at(root, '', { x: 120, y: 296 }, '감사실 문서 <span class="num">0</span>건');
-      d.head.style.cssText += ';font-size:28px;font-weight:800;letter-spacing:-0.02em';
-      d.headN = d.head.querySelector('span');
-      d.headS = K.at(root, 'small', { x: 120, y: 338 }, '점 하나 = 문서 한 건');
-      d.headS.style.fontSize = '19px';
+      // 왼쪽: 문서 8,978건
+      const big = 'font:900 104px/1 var(--display);letter-spacing:-0.03em', unit = 'font:800 40px/1 var(--sans);letter-spacing:-0.02em;margin-left:8px';
+      d.head = txt(root, `<span class="num" style="${big}">0</span><span style="${unit}">건</span>`, { x: 120, y: 316 }, 'white-space:nowrap');
+      d.headN = d.head.querySelector('.num');
       const labs = [
-        ['공통 수신 2,152건 제외', '8개 이상 부서가 같은 제목으로 받은 공문'],
-        ['부서공통 추정 193건', '출장·지출 등 묶음 7개, 보류'],
-        ['소규모 군집 2,036건', '이번에는 분석하지 않음'],
-        ['상위 군집 90개 · 4,597건', '군집 대상 6,633건의 69% → 오른쪽 막대'],
+        ['2,152건', '여러 부서가 같이 받은 공문'],
+        ['193건', '출장·지출 같은 공통 사무'],
+        ['2,036건', '작은 묶음, 이번에는 읽지 않았다'],
+        ['4,597건', '큰 묶음 90개가 된다'],
       ];
+      const LX = FX + COLS * P + 26;
       d.labs = labs.map((l, k) => {
-        const y = k === 1 ? d.blockY[1] + d.blockH[1] / 2 - 18 : d.blockY[k] - 4;
-        const e = K.at(root, '', { x: 418, y, w: 320 }, `<div style="font-size:23px;font-weight:800;letter-spacing:-0.02em;color:${k === 3 ? 'var(--ink)' : 'var(--ink-2)'}">${l[0]}</div><div style="font-size:19px;color:var(--mute);margin-top:2px;line-height:1.35">${l[1]}</div>`);
-        return e;
+        const one = k === 1, strong = k === 3;
+        const y = one ? d.blockY[1] + d.blockH[1] / 2 - 18 : d.blockY[k] + d.blockH[k] / 2 - 36;
+        const html = one
+          ? `<span style="font:800 28px/1.25 var(--sans);color:var(--ink-2)">${l[0]}</span> <span style="font:500 24px/1.25 var(--sans);color:var(--mute)">${l[1]}</span>`
+          : `<div style="font:800 ${strong ? 34 : 28}px/1.25 var(--sans);letter-spacing:-0.02em;color:${strong ? 'var(--ink)' : 'var(--ink-2)'}">${l[0]}</div><div style="font:${strong ? 700 : 500} ${strong ? 26 : 24}px/1.3 var(--sans);color:${strong ? 'var(--ink)' : 'var(--mute)'}">${l[1]}</div>`;
+        return txt(root, html, { x: LX, y }, 'white-space:nowrap');
       });
-      d.eq = K.at(root, 'mono', { x: 120, y: d.blockY[3] + d.blockH[3] + 22 }, '8,978 − 2,152 − 193 = 6,633');
-      d.eq.style.cssText += ';font-size:20px;color:var(--ink-2)';
-      // 오른쪽 위: 막대 머리와 범례
-      d.bh = K.at(root, '', { x: 760, y: 296 }, '상위 군집 90개 · 문서 수 순');
-      d.bh.style.cssText += ';font-size:24px;font-weight:800;letter-spacing:-0.02em';
-      const sw = c => `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${c};margin:0 8px 0 18px;vertical-align:-1px"></span>`;
-      d.leg = K.at(root, '', { r: 120, y: 302 }, `${sw(C.ok)}유지 근거${sw(C.blue)}개명 근거${sw('#A4A9B6')}보류`);
-      d.leg.style.cssText += ';font-size:20px;font-weight:600;color:var(--ink-2)';
-      d.ax0 = K.at(root, 'mono', { x: 760, y: 700 }, 'c001 · 237건'); d.ax0.style.cssText += ';font-size:19px;color:var(--mute)';
-      d.ax1 = K.at(root, 'mono', { r: 120, y: 700 }, 'c090 · 18건'); d.ax1.style.cssText += ';font-size:19px;color:var(--mute);text-align:right';
-      // 머무는 동안 순환하는 설명(막대 강조와 짝)
-      const caps = [
-        ['군집 90개', 'var(--ink)', '유지 근거 69 + 개명 근거 7 + 보류 14'],
-        ['개명 근거 군집 7개', 'var(--blue)', 'c007 · c058 · c021 · c022 · c053 · c030 · c085'],
-        ['보류 군집 14개', '#6A7287', '부서공통·혼합·타부서 소관 수신 등. 부서공통 추정 묶음 7개도 보류'],
-        ['유지 근거 군집 69개', '#0B7A52', '이름이 문서와 맞는 기존 단위업무 17개의 근거'],
-      ];
-      d.caps = caps.map(c => {
-        const e = K.at(root, '', { x: 1250, y: 392, w: 550 }, `<div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;color:${c[1]}">${c[0]}</div><div style="font-size:20px;color:var(--ink-2);margin-top:6px;line-height:1.4">${c[2]}</div>`);
-        e.style.opacity = '0';
-        return e;
-      });
-      d.caps[1].lastChild.classList.add('mono');
-      d.caps[1].lastChild.style.fontSize = '19px';
-      d.caps[1].lastChild.style.whiteSpace = 'nowrap';
-      // 오른쪽 아래: 제안 결과
-      d.rt = K.at(root, '', { x: 760, y: 752 }, '제안 23건 · 기존 단위업무 23개를 모두 판단했다');
-      d.rt.style.cssText += ';font-size:26px;font-weight:800;letter-spacing:-0.02em';
-      d.rt0 = K.at(root, '', { r: 120, y: 756 }, '신설·초안 0건');
-      d.rt0.style.cssText += ';font-size:22px;font-weight:600;color:var(--mute)';
-      const groups = [['유지', 17, C.ok, '#0B7A52'], ['개명', 3, C.blue, C.blue], ['통합·폐지 검토', 3, C.warn, '#965A00']];
-      d.tiles = []; d.glab = [];
-      let tx = 760;
-      groups.forEach((g, gi) => {
-        const gx = tx;
-        for (let t = 0; t < g[1]; t++) {
-          const e = K.at(root, '', { x: tx, y: 802, w: 34, h: 34 });
-          e.style.cssText += `;background:${g[2]};border-radius:5px`;
-          d.tiles.push({ e, g: gi });
-          tx += 40;
-        }
-        const l = K.at(root, '', { x: gx, y: 846 }, `${g[0]} ${g[1]}`);
-        l.style.cssText += `;font-size:22px;font-weight:800;color:${g[3]};white-space:nowrap`;
-        d.glab.push(l);
-        tx += 22;
-      });
-      d.hold = K.at(root, '', { x: 760, y: 898 }, '<b style="font-weight:800">보류 21개</b><span style="color:var(--mute)"> · 군집 14개와 부서공통 추정 묶음 7개</span>');
-      d.hold.style.cssText += ';font-size:22px;color:var(--ink-2)';
-      d.rv = K.at(root, '', { x: 760, y: 938 }, '<b style="font-weight:800">검토</b> 1회차 수정필요 4건 → 고친 뒤 2회차 2건');
-      d.rv.style.cssText += ';font-size:22px;color:var(--ink-2)';
-      d.stamp = K.stampEl(root, '수정필요 2건', 'warn', { x: 1560, y: 900 });
-      d.stamp.style.background = 'rgba(251,250,246,.6)';
+      // 오른쪽: 묶음 90개
+      d.bh = txt(root, `<span style="${unit};margin-left:0;margin-right:10px">묶음</span><span class="num" style="${big}">0</span><span style="${unit}">개</span>`, { x: B.BX, y: 316 }, 'white-space:nowrap');
+      d.bhN = d.bh.querySelector('.num');
+      d.ax0 = txt(root, '237건', { x: B.BX - 6, y: B.BASE - 310 - 40 }, 'font:700 24px/1 var(--sans);color:var(--ink-2)');
+      d.ax1 = txt(root, '18건', { r: 1920 - (B.BX + 90 * B.PITCH), y: B.BASE - 18 * B.HP - 36 }, 'font:700 24px/1 var(--sans);color:var(--ink-2);text-align:right');
+      // 머무는 동안: 묶음 하나씩 제목 예를 보여 준다
+      d.ex = [[0, 237, '감사원 감사자료 제출'], [1, 193, '부패영향평가 요청'], [6, 154, '처리 전말 내역서 제출']];
+      d.caps = d.ex.map(e => txt(root, `<span style="color:#0B7A52;font-weight:800">묶음 하나 ${e[1]}건</span>&nbsp; 제목 예: ${e[2]}`, { x: B.BX, y: 826 }, 'font:600 30px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink);white-space:nowrap;opacity:0'));
+      d.sum = txt(root, '남은 문서 6,633건 가운데 <b style="font-weight:850">69%</b>가 이 90개에 들어 있다', { x: B.BX, y: 912 }, 'font:600 30px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap');
     },
     render(lt, d) {
       d.T.render(lt);
-      const ctx = d.ctx, D = d.D, B = d.bar;
+      const ctx = d.ctx, D = d.D, B = d.bar, G = d.geo;
       ctx.clearRect(...d.clip);
-      // 순환 강조: -1/0 전체, 1 개명, 2 보류, 3 유지
-      const st = K.cycle(lt, 3.4, 2.6, 4);
-      const loc = st < 0 ? 0 : (lt - 3.4) % 2.6;
-      const on = st > 0 ? Math.min(prog(loc, 0, 0.3), 1 - prog(loc, 2.3, 0.3)) : 0;
-      const focus = ['', 'r', 'h', 'k'][Math.max(0, st)];
-      const tcol = { k: C.ok, r: C.blue, h: '#A4A9B6' };
-      const barCol = CL.map((_, j) => mix(C.ink, tcol[CT[j]], prog(lt, 2.55 + j * 0.004, 0.35, ease.linear)));
-      const barA = CL.map((_, j) => (focus && CT[j] !== focus ? lerp(1, 0.2, on) : 1));
+      const st = K.cycle(lt, 3.4, 2.4, 3);
+      const loc = st < 0 ? 0 : (lt - 3.4) % 2.4;
+      const on = st >= 0 ? Math.min(prog(loc, 0, 0.3), 1 - prog(loc, 2.1, 0.3)) : 0;
+      const hot = st >= 0 ? d.ex[st][0] : -1;
       const landedAll = lt >= 2.95;
       const catCol = ['rgba(100,116,139,.40)', '#A4A9B6', 'rgba(27,42,74,.24)', C.ink];
       let last = '';
@@ -463,8 +461,7 @@
           const pf = prog(lt, D.tF[i], 0.55, ease.inOutCubic);
           if (pf >= 1) {
             if (landedAll) continue;
-            const j = D.j[i];
-            set(barCol[j]);
+            set(C.ink);
             ctx.fillRect(D.tx[i], D.ty[i], B.W, B.HP + 0.4);
             continue;
           }
@@ -472,139 +469,268 @@
         }
         set(ps > 0 ? catCol[cat] : 'rgba(27,42,74,.62)');
         ctx.globalAlpha = a;
-        ctx.fillRect(x, y, 2.5, 2.5);
+        ctx.fillRect(x, y, 2.6, 2.6);
         ctx.globalAlpha = 1;
       }
       if (landedAll) {
         CL.forEach((n, j) => {
-          ctx.globalAlpha = barA[j];
-          ctx.fillStyle = barCol[j];
+          ctx.fillStyle = j === hot ? mix(C.ink, C.ok, on) : C.ink;
+          ctx.globalAlpha = hot >= 0 && j !== hot ? lerp(1, 0.55, on) : 1;
           ctx.fillRect(B.BX + j * B.PITCH, B.BASE - n * B.HP, B.W, n * B.HP);
         });
         ctx.globalAlpha = 1;
         last = '';
       }
-      // 기준선과 비워진 상위 군집 자리
-      const pb = prog(lt, 1.6, 0.6, ease.swift);
+      // 기준선과, 막대로 옮겨 간 문서가 있던 자리
       ctx.fillStyle = C.ink;
-      ctx.fillRect(760, B.BASE + 1, 1040 * pb, 1.5);
+      ctx.fillRect(B.BX - 6, B.BASE + 1, (90 * B.PITCH + 10) * prog(lt, 1.6, 0.6, ease.swift), 2);
       const pe = prog(lt, 2.5, 0.4, ease.linear);
       if (pe > 0) {
         ctx.save();
         ctx.globalAlpha = pe;
-        ctx.fillStyle = 'rgba(27,42,74,.09)';   // 막대로 옮겨 간 문서가 있던 자리
-        for (let q = 0; q < 4597; q++) ctx.fillRect(120 + (q % 80) * 3.5, d.blockY[3] + Math.floor(q / 80) * 3.5, 2.5, 2.5);
+        ctx.fillStyle = 'rgba(27,42,74,.10)';
+        for (let q = 0; q < 4597; q++) ctx.fillRect(G.FX + (q % G.COLS) * G.P, d.blockY[3] + Math.floor(q / G.COLS) * G.P, 2.6, 2.6);
         ctx.restore();
       }
-      if (focus === 'h' && on > 0) {   // 보류 강조 때 부서공통 추정 묶음도 테두리로 표시
-        ctx.save();
-        ctx.globalAlpha = on;
-        ctx.strokeStyle = '#6A7287';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(114, d.blockY[1] - 6, 80 * 3.5 + 8, d.blockH[1] + 10);
-        ctx.restore();
-      }
-      // 글
       K.rise(d.head, lt, 0.25, { y: 10 });
       K.count(d.headN, lt, 0.3, 1.0, 8978);
-      K.rise(d.headS, lt, 0.4, { y: 8 });
       d.labs.forEach((e, k) => K.rise(e, lt, 1.55 + k * 0.1, { x: -12, y: 0 }));
-      K.rise(d.eq, lt, 2.6, { y: 8 });
-      K.rise(d.bh, lt, 1.5, { y: 10 });
-      K.rise(d.leg, lt, 2.6, { y: 8 });
-      K.rise(d.ax0, lt, 1.9, { y: 6 });
-      K.rise(d.ax1, lt, 2.2, { y: 6 });
+      K.rise(d.bh, lt, 1.6, { y: 10 });
+      K.count(d.bhN, lt, 1.8, 1.0, 90);
+      K.rise(d.ax0, lt, 2.6, { y: 6 }); K.rise(d.ax1, lt, 2.7, { y: 6 });
+      K.rise(d.sum, lt, 2.8, { y: 10 });
       d.caps.forEach((e, k) => {
-        const v = st === k ? Math.min(prog(loc, 0, 0.35), 1 - prog(loc, 2.3, 0.3)) : 0;
-        e.style.opacity = v.toFixed(3);
-        e.style.transform = `translateY(${((1 - Math.min(1, prog(loc, 0, 0.35))) * 12).toFixed(1)}px)`;
+        e.style.opacity = (st === k ? on : 0).toFixed(3);
+        e.style.transform = `translateY(${((1 - Math.min(1, prog(loc, 0, 0.3))) * 10).toFixed(1)}px)`;
       });
-      K.rise(d.rt, lt, 2.2, { y: 10 });
-      K.rise(d.rt0, lt, 2.4, { y: 10 });
-      const gFocus = { r: 1, k: 0 }[focus];
-      d.tiles.forEach((t, k) => {
-        K.pop(t.e, lt, 2.3 + k * 0.025);
-        if (lt > 2.3 + k * 0.025 + 0.2) {
-          const dim = focus && t.g !== gFocus ? lerp(1, 0.25, on) : 1;
-          t.e.style.opacity = dim.toFixed(3);
-        }
-      });
-      d.glab.forEach((l, k) => K.rise(l, lt, 2.6 + k * 0.08, { y: 8 }));
-      K.rise(d.hold, lt, 2.75, { y: 8 });
-      d.hold.style.background = focus === 'h' ? `rgba(148,163,184,${(0.22 * on).toFixed(3)})` : 'transparent';
-      K.rise(d.rv, lt, 2.85, { y: 8 });
-      K.stamp(d.stamp, lt, 3.05, { rot: -6 });
     },
   });
 
-  // 37. 개명 제안
-  const RN = [
-    { id: 'U0118', old: '감사제도 운영 및 지원 관리', neu: '감사처분 심의·조치이행관리', dup: '같은 부서 U0111과 이름이 같다', n: 181, cl: 'c007 · c058', v: '수정필요', vc: 'warn',
-      say: '근거 군집 c058의 접수 11건은 자회사가 보낸 문서라 자회사 감사 관리 쪽 철로 옮겨야 한다. 이름은 그대로 두고 철 구성을 고친다.' },
-    { id: 'U0125', old: '종합감사 관리', neu: '자회사 감사 관리', dup: '같은 부서 U0113과 이름이 같다', n: 151, cl: 'c021 · c022 · c053', v: '수정필요', vc: 'warn',
-      say: '근거 군집 c022의 59건 중 13건은 자회사 감사 문서가 아니다(국토교통부 감사 7건, 본사 감사 6건). 이름과 철 3개는 그대로 둔다.' },
-    { id: 'U0119', old: '외부감사·상급기관 대응관리', neu: '안전감찰협의회 대응관리', dup: '같은 부서 U0107·U0128과 이름이 같다', n: 66, cl: 'c030 · c085', v: '통과', vc: 'ok',
-      say: '이 단위업무의 유일한 철 ‘행정안전부 안전감찰협의회 대응’에 맞춰 대상을 이름에 드러냈다.' },
-  ];
+  // 기존 단위업무 23개 판단
   DECK.slide({
-    id: 'c4-rename', title: '개명 제안', chapter: CH, harness: 'naming',
-    notes: '개명을 제안한 세 단위업무는 모두 같은 부서 안의 다른 단위업무와 이름이 같았다. 예를 들어 U0118과 U0111은 둘 다 "감사제도 운영 및 지원 관리"인데, U0118의 기록물철은 "감사처분 조치이행관리" 하나뿐이다. 하네스는 실제 문서(처리전말 내역서, 감사처분회의 개최)에 맞춰 이름을 바꾸자고 했다.\n화면에서 바뀌지 않는 음절은 그대로 남고, 바뀌는 음절만 자모로 풀렸다가 새 음절로 모인다.\n수정필요 2건은 이름이 아니라 어느 문서를 어느 철에 둘지에 대한 지적이고, 두 건 모두 이름은 그대로 두라고 했다. 이 지적은 제안표의 검토 의견 열에 남아 담당부서가 정한다.\n출처: kac-unit-task-naming/output/20261117-감사실/단위업무_제안표.csv, _workspace/20261117-감사실/감사실/existing_units.json·review.json',
+    id: 'c4-judge', title: '기존 단위업무 23개를 모두 판단했다', chapter: CH, harness: 'naming',
+    notes: '이름 제안 에이전트(unit-task-namer)는 감사실의 기존 단위업무 23개를 하나도 빼지 않고 유지 17, 개명 3, 통합·폐지 검토 3으로 정했다. 신설은 0건이다.\n유지는 이름과 문서가 맞는 경우다(예: U0123 공직윤리 신고·점검·조치관리, 근거 문서 1,038건). 개명은 문서는 있는데 이름이 그 문서를 가리키지 못하는 경우로, 세 건 모두 같은 부서 안에 같은 이름이 또 있었다(예: U0125 종합감사 관리 → 자회사 감사 관리). 통합·폐지 검토는 해당 문서가 거의 없거나 다른 단위업무와 문서가 구별되지 않는 경우다(예: U0115 성과감사 관리는 묶음 90개 어디에도 성과감사 실시 문서가 없었다). 작은 묶음 2,036건은 읽지 않았으므로 폐지가 아니라 검토 요청으로만 낸다.\n묶음 90개 가운데 14개와 공통 사무 묶음 7개, 모두 21개는 어느 단위업무의 근거로도 쓰지 않고 보류했다.\n출처: kac-unit-task-naming/output/20261117-감사실/요약.md, 단위업무_제안표.csv, _workspace/20261117-감사실/감사실/proposals.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: '개명 제안 3건 · 감사실', title: '같은 부서에서 겹치던 이름 셋을 바꾸자고 제안했다' });
-      const S = 76;
+      d.T = K.title(root, { w: TW, kicker: '감사실 실행 결과 · 이름 판단', title: '기존 단위업무 23개를 모두 판단했다' });
+      const G = [['유지', 17, C.ok, '#0B7A52'], ['개명', 3, C.blue, '#1456C8'], ['통합·폐지 검토', 3, C.warn, '#965A00']];
+      const S = 58, PT = 68, GG = 40;
+      let x = 143;
+      d.tiles = []; d.grp = [];
+      G.forEach((g, gi) => {
+        const gx = x, gw = g[1] * PT - (PT - S);
+        for (let t = 0; t < g[1]; t++) {
+          const e = K.at(root, '', { x, y: 322, w: S, h: S });
+          e.style.cssText += `;background:${g[2]};border-radius:9px`;
+          d.tiles.push({ e, g: gi });
+          x += PT;
+        }
+        x += GG;
+        const cx = gx + gw / 2;
+        const num = txt(root, '0', { x: cx - 250, y: 410, w: 500 }, `text-align:center;font:900 168px/1 var(--display);letter-spacing:-0.03em;color:${g[3]}`);
+        num.classList.add('num');
+        const lab = txt(root, g[0], { x: cx - 250, y: 586, w: 500 }, `text-align:center;font:800 36px/1.2 var(--sans);letter-spacing:-0.02em;color:${g[3]};white-space:nowrap`);
+        const ul = K.at(root, '', { x: cx - 110, y: 640, w: 220, h: 8 }); ul.style.cssText += `;border-radius:4px;background:${g[2]};transform-origin:50% 50%`;
+        d.grp.push({ num, lab, ul, n: g[1] });
+      });
+      d.who = actor(root, { id: 'unit-task-namer', x: 170, y: 706, w: 170 });
+      const SAY = ['이름과 문서가 맞습니다', '같은 이름이 또 있습니다', '묶음 90개에 문서가 없습니다'];
+      const EX = ['공직윤리 신고·점검·조치관리', '종합감사 관리 → 자회사 감사 관리', '성과감사 관리'];
+      const CLS = ['ok', 'blue', 'warn'];
+      d.says = SAY.map((t, i) => K.say(root, t, { x: 400, y: 730 }, CLS[i], 'l'));
+      d.exs = EX.map((t, i) => { const e = K.doc(root, t, { x: 400, y: 812 }, CLS[i]); e.style.fontSize = '32px'; e.style.padding = '14px 22px 15px'; return e; });
+      d.zero = txt(root, '신설 <b style="font-weight:850;color:var(--ink)">0건</b>', { x: 1420, y: 800, w: 380 }, 'text-align:right;font:700 40px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--mute)');
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      const L = K.loop(lt, 2.8, [2.3, 2.3, 2.3]);
+      const on = L.i >= 0 ? Math.min(prog(L.u, 0, 0.12), 1 - prog(L.u, 0.9, 0.1)) : 0;
+      d.tiles.forEach((t, k) => {
+        K.pop(t.e, lt, 0.5 + k * 0.035);
+        if (lt > 0.5 + k * 0.035 + 0.45) {
+          t.e.style.opacity = '1';
+          t.e.style.transform = `translateY(${(L.i === t.g ? -8 * on : 0).toFixed(1)}px)`;
+        }
+      });
+      d.grp.forEach((g, k) => {
+        K.rise(g.num, lt, 1.2 + k * 0.2, { y: 20 }); K.count(g.num, lt, 1.2 + k * 0.2, 0.9, g.n);
+        K.rise(g.lab, lt, 1.4 + k * 0.2, { y: 10 });
+        g.ul.style.transform = `scaleX(${(L.i === k ? on : 0).toFixed(4)})`;
+      });
+      d.who.render(lt, 1.8);
+      if (lt > 2.5) d.who.act(lt, L.i >= 0 && L.u > 0.1 && L.u < 0.9);
+      K.rise(d.zero, lt, 2.2, { y: 10 });
+      d.says.forEach((e, i) => show(e, L.i === i && L.u > 0.1 && L.u < 0.95));
+      d.exs.forEach((e, i) => {
+        const v = L.i === i ? Math.min(prog(L.u, 0.2, 0.1), 1 - prog(L.u, 0.9, 0.08)) : 0;
+        e.style.opacity = v.toFixed(3);
+        e.style.transform = `translateX(${((1 - Math.min(1, prog(L.u, 0.2, 0.12))) * -18).toFixed(1)}px)`;
+      });
+    },
+  });
+
+  // 개명 제안 세 건
+  const RN = [
+    { old: '감사제도 운영 및 지원 관리', neu: '감사처분 심의·조치이행관리', dup: 2, n: 181, v: '수정필요', vc: 'warn',
+      title: '감사제도가 아니라 감사처분 문서였다',
+      rs: '이름은 그대로 두고 자회사 문서 11건을 옮깁니다',
+      notes: '기존 단위업무 U0118(감사부)의 이름은 「감사제도 운영 및 지원 관리」로, 같은 부서 U0111(감사기획부)과 이름이 같았다. U0118의 기록물철은 「감사처분 조치이행관리」 하나뿐이고, 실제 문서는 종합감사·특정감사 처분요구에 따른 처리전말 내역서(묶음 c007, 154건)와 감사처분회의·감사결과 심의위원회 개최(묶음 c058, 27건)다. 근거 문서는 181건이다.\n이름 제안 에이전트(unit-task-namer)가 「감사처분 심의·조치이행관리」로 바꾸자고 했다(제안 P013). 검토 에이전트(naming-reviewer)는 두 번 모두 수정필요로 판정했지만 이름은 그대로 두라고 했다. 지적은 묶음 c058의 접수 문서 11건(2022~2024년)이 자회사(KAC공항서비스, 항공보안파트너스)가 보낸 문서라 「자회사 감사 관리」(P020) 쪽 철로 옮겨야 한다는 것, 본사 부서의 이의신청 문서를 받을 철이 필요하다는 것이다. 이 지적은 제안표의 검토 의견 열에 남아 담당 부서가 정한다.\n출처: kac-unit-task-naming/output/20261117-감사실/단위업무_제안표.csv, _workspace/20261117-감사실/감사실/existing_units.json·clusters.json·review.json' },
+    { old: '종합감사 관리', neu: '자회사 감사 관리', dup: 2, n: 151, v: '수정필요', vc: 'warn',
+      title: '자회사의 종합·특정·복무감사 문서가 함께 있었다',
+      rs: '근거 문서 13건은 자회사 감사 문서가 아닙니다',
+      notes: '기존 단위업무 U0125(감사기획부)의 이름은 「종합감사 관리」로, 같은 부서 U0113(감사부)과 이름이 같았다. U0125의 기록물철은 「자회사 종합감사 실시」 하나뿐인데, 실제 문서는 자회사 종합·특정·복무감사 결과 통보와 모·자회사 감사인 워크숍(묶음 c021, 60건), 자회사가 낸 처분사항 조치결과(c022, 59건), 감사결과 이의신청(c053, 32건)이다. 근거 문서는 151건이다.\n이름 제안 에이전트(unit-task-namer)가 「자회사 감사 관리」로 바꾸자고 했다(제안 P020). 검토 에이전트(naming-reviewer)는 두 번 모두 수정필요로 판정했지만 이름과 철 3개는 그대로 두라고 했다. 지적은 묶음 c022의 59건 가운데 13건이 자회사 감사 문서가 아니라는 것이다(국토교통부 감사 처분요구 관련 7건, 본사 감사결과 통보 4건, 본사 조치결과 회신·처분이행 요청 2건). 이 문서를 어느 철에 둘지는 담당 부서가 정한다.\n출처: kac-unit-task-naming/output/20261117-감사실/단위업무_제안표.csv, _workspace/20261117-감사실/감사실/existing_units.json·clusters.json·review.json' },
+    { old: '외부감사·상급기관 대응관리', neu: '안전감찰협의회 대응관리', dup: 3, n: 66, v: '통과', vc: 'ok',
+      title: '하나뿐인 철이 안전감찰협의회 대응이었다',
+      rs: '지적할 것이 없습니다',
+      notes: '기존 단위업무 U0119(감사부)의 이름은 「외부감사·상급기관 대응관리」로, 같은 부서 U0107(감사기획부), U0128(청렴감찰부)과 이름이 같았다. U0119의 기록물철은 「행정안전부 안전감찰협의회 대응」 하나뿐이고, 실제 문서도 행정안전부 안전감찰 협의회 운영계획·이행실태·자율감찰 과제(묶음 c030, 46건)와 범정부 안전분야 반부패협의회(c085, 20건)다. 감사원·국토교통부 감사 대응과는 대상이 다르다. 근거 문서는 66건이다.\n이름 제안 에이전트(unit-task-namer)가 「안전감찰협의회 대응관리」로 바꾸자고 했고(제안 P014), 검토 에이전트(naming-reviewer)는 두 번 모두 지적 없이 통과로 판정했다. 같은 이름을 쓰던 U0128은 통합·폐지 검토(P023), U0107은 유지(P002)다.\n출처: kac-unit-task-naming/output/20261117-감사실/단위업무_제안표.csv, _workspace/20261117-감사실/감사실/existing_units.json·clusters.json·review.json' },
+  ];
+
+  // 세 건을 묶어 보여 주는 장
+  DECK.slide({
+    id: 'c4-rename', title: '같은 부서에서 겹치던 이름 셋을 바꾸자고 제안했다', chapter: CH, harness: 'naming',
+    notes: '개명을 제안한 세 단위업무는 모두 같은 부서(감사실) 안의 다른 단위업무와 이름이 같았다. 「감사제도 운영 및 지원 관리」는 U0111·U0118 두 개, 「종합감사 관리」는 U0113·U0125 두 개, 「외부감사·상급기관 대응관리」는 U0107·U0119·U0128 세 개다.\n하네스는 이름이 같은 단위업무 가운데 문서 내용과 이름이 맞지 않는 쪽(U0118, U0125, U0119)을 실제 문서에 맞춰 바꾸자고 했다. 다음 세 장에서 한 건씩 본다.\n출처: kac-unit-task-naming/output/20261117-감사실/단위업무_제안표.csv, _workspace/20261117-감사실/감사실/existing_units.json',
+    setup(root, d) {
+      d.T = K.title(root, { w: TW, kicker: '감사실 실행 결과 · 개명 제안 3건', title: '같은 부서에서 겹치던 이름 셋을 바꾸자고 제안했다' });
+      d.h1 = txt(root, '기존 이름', { x: 392, y: 304 }, 'font:700 26px/1 var(--sans);color:var(--mute)');
+      d.h2 = txt(root, '제안 이름', { x: 1010, y: 304 }, 'font:700 26px/1 var(--sans);color:#1456C8');
+      d.svg = K.svg(root);
       d.rows = RN.map((r, i) => {
-        const top = 300 + i * 228;
-        const bg = K.at(root, '', { x: 96, y: top - 14, w: 1728, h: 220 });
-        bg.style.borderRadius = '14px';
-        const acc = K.at(bg, '', { x: 0, y: 20, w: 6, h: 180 });
-        acc.style.cssText += ';background:var(--blue);border-radius:3px;opacity:0';
-        const la = K.at(root, '', { x: 120, y: top });
-        la.style.cssText += ';display:flex;align-items:center;gap:14px;white-space:nowrap';
-        K.chip(la, r.id, 'id');
-        const on = h('span', '', la, `<span style="font-weight:500;color:var(--mute);margin-right:8px">기존</span>${r.old}`); on.style.cssText = 'font-size:24px;font-weight:600;color:var(--ink-2)';
-        const du = h('span', '', la, '· ' + r.dup); du.style.cssText = 'font-size:21px;color:var(--mute)';
-        const host = K.at(root, '', { x: 120, y: top + 52, w: 1200, h: S });
-        host.style.color = C.ink;
-        const M = buildMorph(host, r.old, r.neu, S);
-        const say = K.at(root, '', { x: 120, y: top + 150, w: 1680 },
-          `<b style="font-weight:800;color:${r.vc === 'ok' ? '#0B7A52' : '#965A00'}">${r.vc === 'ok' ? '검토 통과' : '검토 지적'}</b> &nbsp;${r.say}`);
-        say.style.cssText += ';font-size:21px;line-height:1.45;color:var(--ink-2);white-space:nowrap';
-        const rc = K.at(root, '', { x: 1390, y: top });
-        rc.innerHTML = '<div style="font-size:19px;font-weight:600;color:var(--mute)">근거 문서</div>' +
-          '<div style="margin-top:2px"><span class="num" style="font-size:52px;font-weight:850;letter-spacing:-0.03em;line-height:1">0</span><span style="font-size:26px;font-weight:700;margin-left:4px">건</span></div>' +
-          `<div class="mono" style="font-size:19px;color:var(--ink-2);margin-top:8px">${r.cl}</div>`;
-        const num = rc.querySelector('.num');
-        const st = K.stampEl(root, r.v, r.vc, { x: 1622, y: top + 26 });
-        st.style.background = 'rgba(251,250,246,.6)';
-        const sep = i < 2 ? K.at(root, '', { x: 120, y: top + 213, w: 1680, h: 1.5 }) : null;
+        const y = 356 + i * 196;
+        const bg = K.at(root, '', { x: 96, y, w: 1728, h: 168 }); bg.style.borderRadius = '16px';
+        const badge = K.chip(root, `같은 이름 ${r.dup}개`, 'warn lg', { x: 124, y: y + 58 }); badge.style.fontSize = '28px'; badge.style.fontWeight = '800';
+        const old = txt(root, r.old, { x: 392, y: y + 60 }, 'font:600 38px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink-2);white-space:nowrap');
+        const strike = h('div', '', old); strike.style.cssText = 'position:absolute;left:-6px;right:-6px;top:54%;height:3px;border-radius:2px;background:rgba(232,72,58,.6);transform-origin:0 50%';
+        const ar = K.path(d.svg, [[900, y + 84], [980, y + 84]], { color: C.ink2, width: 4, arrow: true });
+        const neu = txt(root, r.neu, { x: 1010, y: y + 48 }, 'font:850 58px/1.2 var(--sans);letter-spacing:-0.03em;color:var(--ink);white-space:nowrap');
+        const sep = i < 2 ? K.at(root, '', { x: 120, y: y + 181, w: 1680, h: 2 }) : null;
         if (sep) sep.style.background = 'var(--rule)';
-        return { top, bg, acc, la, host, M, say, rc, num, st, sep, n: r.n };
+        return { bg, badge, old, strike, ar, neu, sep };
       });
     },
     render(lt, d) {
       d.T.render(lt);
-      const k = K.cycle(lt, 4.0, 3.2, d.rows.length);
-      const loc = k < 0 ? 0 : (lt - 4.0) % 3.2;
+      K.rise(d.h1, lt, 0.4, { y: 8 }); K.rise(d.h2, lt, 0.9, { y: 8 });
+      // 머무는 동안에는 한 줄씩 강조만 한다
+      const L = K.loop(lt, 2.8, [2.2, 2.2, 2.2]);
       d.rows.forEach((r, i) => {
-        const t0 = 0.3 + i * 0.12, m0 = 0.7 + i * 0.3;
-        K.rise(r.la, lt, t0, { x: -16, y: 0 });
-        K.rise(r.host, lt, t0 + 0.05, { y: 18, blur: 4 });
-        renderMorph(r.M, lt - m0);
-        K.rise(r.rc, lt, t0 + 0.1, { x: 16, y: 0 });
-        K.count(r.num, lt, t0 + 0.1, 1.0, r.n);
-        K.stamp(r.st, lt, m0 + 1.8, { rot: -6 });
-        K.rise(r.say, lt, m0 + 1.7, { y: 10 });
+        const t0 = 0.5 + i * 0.25;
+        K.pop(r.badge, lt, t0); K.rise(r.old, lt, t0 + 0.05, { x: -16, y: 0 });
+        K.draw(r.ar, lt, t0 + 0.4, 0.3);
         if (r.sep) K.wipe(r.sep, lt, t0, 0.6);
-        // 머무는 동안: 한 줄씩 돌아가며 바뀐 음절에 밑줄을 긋는다
-        const on = k === i ? Math.min(prog(loc, 0, 0.3), 1 - prog(loc, 2.85, 0.3)) : 0;
-        RH.set(r.bg, 'background', on > 0 ? `rgba(47,123,255,${(0.05 * on).toFixed(3)})` : 'transparent');
-        r.acc.style.opacity = on.toFixed(3);
-        r.M.lines.forEach((ln, q) => {
-          const p = k === i ? prog(loc, 0.15 + q * 0.12, 0.45, ease.swift) : 0;
-          ln.style.opacity = (p > 0 ? on : 0).toFixed(3);
+        const now = L.i === i;
+        const on = now ? Math.min(prog(L.u, 0, 0.12), 1 - prog(L.u, 0.9, 0.1)) : 0;
+        RH.set(r.bg, 'background', on > 0 ? `rgba(47,123,255,${(0.10 * on).toFixed(3)})` : 'transparent');
+        r.strike.style.transform = `scaleX(${prog(lt, t0 + 0.5, 0.4, ease.swift).toFixed(4)})`;
+        const pn = prog(lt, t0 + 0.75, 0.5, ease.swift);
+        r.neu.style.opacity = pn > 0 ? '1' : '0';
+        r.neu.style.clipPath = `inset(-10px ${((1 - pn) * 100).toFixed(2)}% -10px 0)`;
+        r.neu.style.color = now ? mix(C.ink, '#1456C8', on) : C.ink;
+      });
+    },
+  });
+
+  // 한 건에 한 장: 기존 이름 → 제안 이름, 제안과 검토
+  RN.forEach((r, i) => {
+    DECK.slide({
+      id: 'c4-rename' + (i + 1), title: r.title, chapter: CH, harness: 'naming', notes: r.notes,
+      setup(root, d) {
+        d.T = K.title(root, { w: TW, kicker: `개명 제안 ${i + 1} / 3 · 감사실`, title: r.title });
+        d.ol = txt(root, '기존 이름', { x: 120, y: 302 }, 'font:700 26px/1 var(--sans);color:var(--mute)');
+        d.old = K.at(root, '', { x: 120, y: 338 });
+        d.old.style.cssText += ';display:flex;align-items:center;gap:24px;white-space:nowrap';
+        const on = h('span', '', d.old, r.old); on.style.cssText = 'font:700 42px/1.2 var(--sans);letter-spacing:-0.02em;color:var(--ink-2)';
+        const bd = K.chip(d.old, `같은 부서에 같은 이름이 ${r.dup}개`, 'warn lg'); bd.style.fontSize = '28px'; bd.style.fontWeight = '800';
+        d.nl = txt(root, '제안 이름', { x: 120, y: 440 }, 'font:700 26px/1 var(--sans);color:#1456C8');
+        const S = 96;
+        d.host = K.at(root, '', { x: 120, y: 482, w: 1300, h: S });
+        d.host.style.color = C.ink;
+        d.M = buildMorph(d.host, r.old, r.neu, S);
+        d.M.lines.forEach(l => { l.style.height = '7px'; l.style.top = (S + 14) + 'px'; });
+        // 근거 문서 수
+        d.ev = K.at(root, '', { x: 1480, y: 302, w: 320 });
+        d.ev.style.textAlign = 'right';
+        d.ev.innerHTML = '<div style="font:700 26px/1 var(--sans);color:var(--mute)">근거 문서</div>' +
+          '<div style="margin-top:10px;white-space:nowrap"><span class="num" style="font:900 104px/1 var(--display);letter-spacing:-0.03em">0</span><span style="font:800 40px/1 var(--sans);margin-left:6px">건</span></div>';
+        d.evN = d.ev.querySelector('.num');
+        // 제안과 검토
+        d.svg = K.svg(root);
+        d.a1 = actor(root, { id: 'unit-task-namer', x: 150, y: 676, w: 180 });
+        d.a2 = actor(root, { id: 'naming-reviewer', x: 950, y: 652, w: 180 });
+        d.p = K.path(d.svg, [[390, 840], [900, 840]], { color: C.ink2, width: 4, arrow: true });
+        d.s1 = K.say(root, '같은 이름이 또 있어 문서에 맞게 바꿉니다', { x: 360, y: 716 }, 'blue', 'l');
+        d.s2 = K.say(root, r.rs, { x: 1160, y: 716 }, r.vc, 'l');
+        d.st = K.stampEl(root, r.v, r.vc, { x: 1190, y: 812 });
+        d.st.style.fontSize = '46px'; d.st.style.padding = '10px 26px';
+      },
+      render(lt, d) {
+        d.T.render(lt);
+        K.rise(d.ol, lt, 0.4, { y: 8 }); K.rise(d.old, lt, 0.5, { x: -16, y: 0 });
+        K.rise(d.nl, lt, 0.7, { y: 8 });
+        K.rise(d.ev, lt, 0.9, { y: 10 }); K.count(d.evN, lt, 0.9, 1.0, r.n);
+        d.a1.render(lt, 1.0); d.a2.render(lt, 1.2); K.draw(d.p, lt, 1.3, 0.4);
+        // 등장: 기존 이름이 제안 이름으로 한 번 바뀐다(0.8~2.2초). 그 뒤로 제안 이름은 그대로 있다.
+        const mu = (lt - 0.8) * 1.3;
+        d.host.style.opacity = prog(lt, 0.6, 0.2).toFixed(3);
+        renderMorph(d.M, mu);
+        d.M.lines.forEach((ln, q) => {
+          const p = prog(mu, 1.75 + q * 0.1, 0.4, ease.swift);
+          ln.style.opacity = p > 0 ? '1' : '0';
           ln.style.clipPath = `inset(0 ${((1 - p) * 100).toFixed(2)}% 0 0)`;
         });
+        // 반복: 제안 한마디 → 검토 한마디 → 판정 도장
+        const L = K.loop(lt, 2.3, [1.5, 1.6, 2.6]);
+        const st = L.i, u = L.u;
+        if (lt > 1.9) { d.a1.act(lt, st === 0); d.a2.act(lt, st === 1); }
+        show(d.s1, st >= 0 && (st > 0 || u > 0.1));
+        show(d.s2, (st === 1 && u > 0.2) || st === 2);
+        if (st === 2) K.stamp(d.st, u * 2.6, 0.1, { rot: -6 }); else d.st.style.opacity = '0';
+      },
+    });
+  });
+
+  // 결과 숫자
+  DECK.slide({
+    id: 'c4-result', title: '문서 8,978건으로 단위업무 23개의 이름을 점검했다', chapter: CH, harness: 'naming',
+    notes: '감사실 실행 결과를 숫자로 모았다. 문서 8,978건을 묶음 90개로 줄여 읽고, 기존 단위업무 23개를 모두 판단했으며(유지 17, 개명 3, 통합·폐지 검토 3, 신설 0), 개명은 3건을 제안했다.\n검토 에이전트(naming-reviewer)는 1회차에 4건을 수정필요로 판정했고, 이름 제안 에이전트(unit-task-namer)가 고친 뒤 2회차에는 통과 21건, 수정필요 2건(P013, P020)이 되었다. 남은 2건은 이름이 아니라 어느 문서를 어느 철에 둘지에 대한 지적이고, 두 건 모두 이름은 그대로 두라고 했다. 이 지적은 제안표의 검토 의견 열에 남아 담당 부서가 정한다.\n결과물은 단위업무_제안표.xlsx·csv와 요약.md이고 build_report.py 가 만든다.\n출처: kac-unit-task-naming/output/20261117-감사실/요약.md, 단위업무_제안표.csv, _workspace/20261117-감사실/감사실/review_v1.json·review.json',
+    setup(root, d) {
+      d.T = K.title(root, { w: TW, kicker: '단위업무명 추천 · 감사실 실행 결과', title: '문서 8,978건으로 단위업무 23개의 이름을 점검했다' });
+      const N = [[8978, '건', '감사실 문서', 480], [90, '개', '제목이 비슷한 문서 묶음', 360], [23, '개', '판단한 단위업무', 360], [3, '건', '개명 제안', 360]];
+      let x = 120;
+      d.nums = N.map((n, i) => {
+        const b = K.at(root, '', { x, y: 316, w: n[3] });
+        b.style.textAlign = 'center';
+        b.innerHTML = `<div style="white-space:nowrap"><span class="num" style="font:900 132px/1 var(--display);letter-spacing:-0.03em">0</span><span style="font:800 44px/1 var(--sans);margin-left:6px">${n[1]}</span></div>` +
+          `<div style="margin-top:16px;font:700 32px/1.25 var(--sans);letter-spacing:-0.02em;color:var(--ink-2)">${n[2]}</div>`;
+        const gt = i < 3 ? txt(root, '›', { x: x + n[3], y: 336, w: 40 }, 'text-align:center;font:700 72px/1 var(--sans);color:var(--mute)') : null;
+        x += n[3] + 40;
+        return { b, num: b.querySelector('.num'), v: n[0], gt };
       });
+      d.line = K.at(root, '', { x: 120, y: 566, w: 1680, h: 2 }); d.line.style.background = 'var(--rule-2)';
+      d.svg = K.svg(root);
+      d.a1 = actor(root, { id: 'naming-reviewer', x: 190, y: 626, w: 180 });
+      d.st1 = K.stampEl(root, '통과 21건', 'ok', { x: 430, y: 650 });
+      d.st2 = K.stampEl(root, '수정필요 2건', 'warn', { x: 430, y: 768 });
+      [d.st1, d.st2].forEach(e => { e.style.fontSize = '46px'; e.style.padding = '10px 26px'; });
+      d.p = K.path(d.svg, [[830, 812], [1150, 812]], { color: C.warn, width: 5, arrow: true });
+      d.a2 = actor(root, { kind: 'human', name: '담당 부서', x: 1200, y: 618, w: 150 });
+      d.fin = txt(root, '남은 지적 2건은<br>담당 부서가 정한다', { x: 1400, y: 724 }, 'font:800 40px/1.3 var(--display);letter-spacing:-0.02em;color:var(--ink);white-space:nowrap');
+    },
+    render(lt, d) {
+      d.T.render(lt);
+      const L = K.loop(lt, 3.0, [1.2, 1.2, 1.2, 1.2, 1.6, 1.8]);
+      d.nums.forEach((n, i) => {
+        const p = K.rise(n.b, lt, 0.5 + i * 0.25, { y: 24 });
+        K.count(n.num, lt, 0.5 + i * 0.25, 1.0, n.v);
+        if (n.gt) K.rise(n.gt, lt, 0.7 + i * 0.25, { x: -12, y: 0 });
+        const on = L.i === i ? Math.min(prog(L.u, 0, 0.2), 1 - prog(L.u, 0.85, 0.15)) : 0;
+        n.num.style.color = mix(C.ink, '#0B7A52', on);
+        if (p >= 1) n.b.style.transform = `translateY(${(-8 * on).toFixed(1)}px)`;
+      });
+      K.wipe(d.line, lt, 1.4, 0.6);
+      d.a1.render(lt, 1.6); d.a2.render(lt, 2.0);
+      K.draw(d.p, lt, 2.1, 0.4); K.rise(d.fin, lt, 2.3, { y: 10 });
+      K.stamp(d.st1, lt, 1.9, { rot: -4 }); K.stamp(d.st2, lt, 2.2, { rot: -4 });
+      if (lt > 2.8) { d.a1.act(lt, L.i === 4); d.a2.act(lt, L.i === 5); }
+      d.p.setAttribute('stroke-width', L.i === 5 ? 8 : 5);
     },
   });
 })();

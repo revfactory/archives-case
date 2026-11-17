@@ -303,8 +303,87 @@
     h('span', '', el, text);
     return el;
   };
+  // ── 에이전트 그림(역할별 그림 + 한글 이름) ─────────────
+  // K.actor(parent, { id:'record-assigner', x, y, w, job }) 또는 { kind:'script'|'human'|'make'|'check'|'judge'|'write', name:'…' }
+  // x, y 는 묶음의 왼쪽 위. 그림 폭 w(기본 200). 그림 아래에 한글 이름표, 그 아래에 하는 일 한 줄(job).
+  // 반환값: { el, img, tag, cx, cy, w, h, render(lt, t0), act(lt, on) }
+  //   render: 등장. act: on 이 참인 동안 그림이 위아래로 움직이고 이름표 테두리가 굵어진다(지금 일하는 중).
+  K.actor = (parent, o) => {
+    const reg = o.id ? K.AG[o.id] : null;
+    const kind = o.kind || (reg && reg.kind) || 'make';
+    const name = o.name || (reg && reg.ko) || '';
+    const w = o.w ?? 200, ih = w * (K.AGR[kind] || 1);
+    const el = K.at(parent, 'actor k-' + kind, { x: o.x, y: o.y, w });
+    const im = h('img', '', el); im.src = `img/ag_${kind}.jpg`; im.alt = '';
+    css(im, { width: w + 'px', height: ih + 'px' });
+    const tag = h('div', 'tag', el, name);
+    if (o.size) tag.style.fontSize = o.size + 'px';
+    let job = null;
+    if (o.job) { job = h('div', 'job', el, o.job); if (o.jobW) job.style.width = o.jobW + 'px'; }
+    return {
+      el, img: im, tag, job, kind, w, h: ih, cx: o.x + w / 2, cy: o.y + ih / 2, top: o.y, bottom: o.y + ih,
+      render(lt, t0 = 0) {
+        const p = prog(lt, t0, 0.5, ease.pop), a = prog(lt, t0, 0.2, ease.linear);
+        el.style.opacity = a.toFixed(3);
+        im.style.transform = `translateY(${((1 - p) * 30).toFixed(1)}px) scale(${lerp(0.8, 1, p).toFixed(4)})`;
+        tag.style.transform = `scale(${prog(lt, t0 + 0.12, 0.4, ease.pop).toFixed(4)})`;
+        if (job) job.style.opacity = prog(lt, t0 + 0.3, 0.3).toFixed(3);
+        return a;
+      },
+      act(lt, on) {
+        const k = on ? 1 : 0;
+        im.style.transform = `translateY(${(-k * 10 * (0.5 - 0.5 * Math.cos(lt * Math.PI * 2 / 0.9))).toFixed(1)}px)`;
+        RH.set(tag, 'boxShadow', on ? '0 0 0 6px var(--k-soft)' : 'none');
+      },
+    };
+  };
+  // 문서 한 장(옮겨 다니는 카드). K.doc(parent, '제목', { x, y, w }) → el. K.travel 로 옮긴다.
+  K.doc = (parent, html, box = {}, cls = '') => K.at(parent, 'doc ' + cls, box, html);
+  // 요소를 from → to 로 옮긴다(절대 좌표, 요소의 왼쪽 위 기준). o.arc = 위로 휘는 높이(px). 반환값 0~1.
+  K.travel = (el, lt, t0, dur, from, to, o = {}) => {
+    const p = prog(lt, t0, dur, o.ease || ease.inOutCubic);
+    const x = lerp(from[0], to[0], p), y = lerp(from[1], to[1], p) - Math.sin(p * Math.PI) * (o.arc ?? 0);
+    el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px';
+    if (o.fade !== false) el.style.opacity = (lt < t0 ? (o.pre ?? 0) : 1).toFixed(3);
+    return p;
+  };
+  // 반복하는 단계 진행: durs = [각 단계 길이(초)…]. t0 뒤로 전체를 계속 되풀이한다.
+  // 반환값 { i: 지금 단계(-1 = 시작 전), u: 그 단계 안에서 0~1, t: 이번 바퀴에서 지난 초, lap: 몇 바퀴째 }
+  K.loop = (lt, t0, durs) => {
+    if (lt < t0) return { i: -1, u: 0, t: 0, lap: 0 };
+    const total = durs.reduce((a, b) => a + b, 0);
+    const lap = Math.floor((lt - t0) / total);
+    let t = (lt - t0) - lap * total, acc = 0;
+    for (let i = 0; i < durs.length; i++) { if (t < acc + durs[i]) return { i, u: (t - acc) / durs[i], t, lap }; acc += durs[i]; }
+    return { i: durs.length - 1, u: 1, t, lap };
+  };
+  // 말풍선(에이전트가 낸 판단 한마디). cls: ok | warn | bad | blue. dir: 꼬리 방향 'l' | 'r' | 'b'
+  K.say = (parent, text, box, cls = 'blue', dir = 'l') => K.at(parent, 'say ' + cls + ' tail-' + dir, box, text);
   K.rand = rand;
 })();
+/* 에이전트 18개: 화면에는 한글 이름(ko)을 쓰고, 영문 이름은 발표자 노트에만 적는다. kind 는 그림과 색을 정한다. */
+window.K.AG = {
+  'record-assigner':              { hz: 'assign',    ko: '배정 에이전트',      kind: 'make'  },
+  'assignment-verifier':          { hz: 'assign',    ko: '검증 에이전트',      kind: 'check' },
+  'assignment-arbiter':           { hz: 'assign',    ko: '중재 에이전트',      kind: 'judge' },
+  'blind-classifier':             { hz: 'audit',     ko: '다시 분류 에이전트', kind: 'make'  },
+  'label-judge':                  { hz: 'audit',     ko: '판정 에이전트',      kind: 'judge' },
+  'correction-challenger':        { hz: 'audit',     ko: '반박 에이전트',      kind: 'check' },
+  'work-cluster-analyst':         { hz: 'naming',    ko: '묶음 해석 에이전트', kind: 'make'  },
+  'unit-task-namer':              { hz: 'naming',    ko: '이름 제안 에이전트', kind: 'make'  },
+  'naming-reviewer':              { hz: 'naming',    ko: '검토 에이전트',      kind: 'check' },
+  'org-change-interpreter':       { hz: 'orgchange', ko: '변경 해석 에이전트', kind: 'make'  },
+  'unit-impact-analyst':          { hz: 'orgchange', ko: '영향 분석 에이전트', kind: 'make'  },
+  'change-proposal-verifier':     { hz: 'orgchange', ko: '검증 에이전트',      kind: 'check' },
+  'impact-report-writer':         { hz: 'orgchange', ko: '보고서 에이전트',    kind: 'write' },
+  'org-diagnostician':            { hz: 'strategy',  ko: '진단 에이전트',      kind: 'make'  },
+  'regulation-constraint-checker':{ hz: 'strategy',  ko: '규정 확인 에이전트', kind: 'make'  },
+  'org-option-designer':          { hz: 'strategy',  ko: '대안 설계 에이전트', kind: 'make'  },
+  'org-option-critic':            { hz: 'strategy',  ko: '반박 에이전트',      kind: 'check' },
+  'executive-report-writer':      { hz: 'strategy',  ko: '보고서 에이전트',    kind: 'write' },
+};
+/* 역할 그림(img/ag_<kind>.jpg)의 세로/가로 비. 그림을 만든 뒤 tools/prep_agents.py 가 값을 알려 준다. */
+window.K.AGR = { make: 1.1047, check: 1.2422, judge: 1.2453, write: 1.2344, script: 1.0562, human: 1.6306 };
 /* 색 상수(JS 에서 캔버스·SVG 에 쓸 때) */
 /* 필름(기록관리 하네스 120초)의 팔레트를 그대로 쓴다. */
 window.K.C = { ink: '#1B2A4A', ink2: '#3A4A6B', mute: '#6A7287', paper: '#FDF3E2', paper2: '#F4E6CC', paper3: '#FFFAF2', night: '#1B2A4A',

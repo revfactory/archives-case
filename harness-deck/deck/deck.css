@@ -190,3 +190,26 @@ button:focus-visible { outline: 3px solid #2F7BFF; outline-offset: 3px; }
 #navzones div:first-child { flex: 0.5; cursor: w-resize; }
 #navzones div:last-child { cursor: e-resize; }
 body.still #navzones, body.still #help, body.still #notes { display: none !important; }
+
+/* 에이전트 그림 묶음: 역할 그림 + 한글 이름표 + 하는 일 한 줄 */
+.actor { position: absolute; display: flex; flex-direction: column; align-items: center; text-align: center; --k: var(--blue); --k-soft: rgba(47,123,255,.22); --k-ink: #1456C8; }
+.actor.k-check { --k: var(--bad); --k-soft: rgba(232,72,58,.22); --k-ink: #B3261E; }
+.actor.k-judge { --k: var(--warn); --k-soft: rgba(232,147,12,.26); --k-ink: #965A00; }
+.actor.k-write { --k: #3A4A6B; --k-soft: rgba(27,42,74,.2); --k-ink: #1B2A4A; }
+.actor.k-script { --k: #8A8371; --k-soft: rgba(106,114,135,.22); --k-ink: #4F4A3D; }
+.actor.k-human { --k: #1B2A4A; --k-soft: rgba(27,42,74,.22); --k-ink: #fff; }
+.actor img { display: block; flex: none; mix-blend-mode: darken; transform-origin: 50% 100%; pointer-events: none; }
+.actor .tag { display: inline-block; flex: none; margin-top: 6px; padding: 8px 18px 9px; border-radius: 999px; background: var(--paper-3); border: 3px solid var(--k);
+  color: var(--k-ink); font: 800 28px/1.1 var(--sans); letter-spacing: -0.02em; white-space: nowrap; transform-origin: 50% 0%; }
+.actor.k-script .tag { border-style: dashed; }
+.actor.k-human .tag { background: var(--ink); }
+.actor .job { flex: none; margin-top: 10px; font: 600 26px/1.3 var(--sans); letter-spacing: -0.02em; color: var(--ink-2); }
+/* 옮겨 다니는 문서 카드 */
+.doc { position: absolute; box-sizing: border-box; background: #fff; border: 2px solid var(--ink); border-radius: 8px; padding: 10px 16px 11px;
+  font: 700 24px/1.25 var(--sans); letter-spacing: -0.02em; color: var(--ink); box-shadow: 0 10px 22px -14px rgba(27,42,74,.55); white-space: nowrap; }
+.doc.ok { border-color: var(--ok); } .doc.warn { border-color: var(--warn); } .doc.bad { border-color: var(--bad); } .doc.blue { border-color: var(--blue); }
+/* 에이전트의 판단 한마디 */
+.say { position: absolute; box-sizing: border-box; padding: 10px 18px 11px; border-radius: 16px; font: 800 26px/1.2 var(--sans); letter-spacing: -0.02em;
+  color: #fff; background: var(--blue); white-space: nowrap; }
+.say.ok { background: var(--ok); } .say.warn { background: var(--warn); } .say.bad { background: var(--bad); } .say.ink { background: var(--ink); }
+.say.tail-l { border-bottom-left-radius: 4px; } .say.tail-r { border-bottom-right-radius: 4px; } .say.tail-b { border-radius: 16px; }
