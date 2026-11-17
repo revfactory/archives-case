@@ -1,0 +1,30 @@
+# 원자료(한국공항공사 제공 자료)는 올리지 않는다
+/(한국공항공사) 기록물분류체계/
+# 문서목록 색인(408MB, GitHub 파일당 100MB 제한 초과). kac-shared/scripts/extract_titles.py 로 다시 만든다
+/kac-shared/data/production.sqlite
+
+# 시스템·실행 부산물
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+*.log
+
+# 발표자료: 검수 스틸, Artifact 게시용 복사본(docs/ 가 같은 내용), 렌더 중간 산출물
+/harness-deck/qa/
+/harness-deck/publish/
+/harness-deck/out/
+/harness-deck/research/
+/harness-deck/video/film/
+/harness-deck/video/v1_media/
+/harness-deck/video/*/out/
+/harness-deck/video/*/audio/
+/harness-deck/video/*/reel/fonts/
+/harness-deck/video/*/qa/*
+!/harness-deck/video/*/qa/*.md
+/harness-deck/video/qa/*
+!/harness-deck/video/qa/*.md
+/harness-deck/assets/film/
+/harness-deck/assets/gen/
+/harness-deck/assets/img/
+/harness-deck/assets/hf_src/

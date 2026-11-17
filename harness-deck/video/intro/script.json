@@ -1,0 +1,15 @@
+{
+  "duration": 48,
+  "lines": [],
+  "scenes": [
+    {"id": "s01", "start": 0},
+    {"id": "s02", "start": "bar4"},
+    {"id": "s03", "start": "bar8"},
+    {"id": "s04", "start": "bar12"},
+    {"id": "s05", "start": "bar14"},
+    {"id": "s06", "start": "bar19"},
+    {"id": "s07", "start": "bar22"}
+  ],
+  "sfx": [],
+  "music": {"file": "audio/music/music.wav", "gain_db": -4, "duck": 1.0}
+}

@@ -1,0 +1,32 @@
+{
+ "duration": 50,
+ "lines": [],
+ "scenes": [
+  {
+   "id": "c1",
+   "start": 0
+  },
+  {
+   "id": "c2",
+   "start": 10
+  },
+  {
+   "id": "c3",
+   "start": 20
+  },
+  {
+   "id": "c4",
+   "start": 30
+  },
+  {
+   "id": "c5",
+   "start": 40
+  }
+ ],
+ "sfx": [],
+ "music": {
+  "file": "audio/music/music.wav",
+  "gain_db": -4,
+  "duck": 1.0
+ }
+}

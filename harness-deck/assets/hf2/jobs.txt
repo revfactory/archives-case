@@ -1,0 +1,6 @@
+kling3_0_turbo 1080p 8s, start_image = harness-film assets/img g02~g06
+jobs: 0 be8844b2-c7b0-419a-82ce-3377138aa683 (g02_sort 배정)
+1 3f26e9dd-a69e-4c95-a017-60406efe4443 (g03_audit 점검)
+2 be6d2de0-aa6c-4980-ad0a-29f9473b7445 (g04_naming 이름)
+3 2cc4e659-3fe5-4a35-a6ee-4bf1067dcd21 (g05_orgchange 조직변경)
+4 42623ef2-229b-4a2f-a8e4-2731450f208c (g06_strategy 개편)
