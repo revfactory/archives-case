@@ -227,50 +227,54 @@
     },
   });
 
-  // 5. 데이터의 빈틈 — 필름 B 구간(고르는 기준이 사람마다 다르다)
+  // 5. 자료에 없는 정보 — 필름 B 구간(고르는 기준이 사람마다 다르다)
   DECK.slide({
-    id: 'gaps', title: '데이터의 빈틈', chapter: CH,
-    notes: '하네스를 설계하기 전에 데이터에서 세 가지를 확인했다.\n첫째, 문서 1,076,767건의 목록(생산현황)에는 단위업무·기록물철 칸이 없다. 문서마다 어느 철인지 적혀 있지 않아 제목을 읽고 추정해야 한다.\n둘째, 생산현황의 부서명 65개 중 32개는 자기 분류기준표가 없다. 제주·김해 운영단과 지방공항 문서 522,546건은 김포·청주 기준표를 빌려 쓴다(준용).\n셋째, 비상계획실 기록물철 42행 중 34행은 단위업무명과 철명이 비어 있다.\n그래서 하네스는 확신이 없을 때 미배정·사람 확인·보류로 남기도록 만들었다.\n출처: kac-shared/data/production.sqlite, dept_map.json, classification.json',
+    id: 'gaps', title: '자료에 없는 정보', chapter: CH,
+    notes: '하네스를 설계하기 전에 자료에서 세 가지를 확인했다.\n첫째, 문서 1,076,767건의 목록(생산현황)에는 단위업무·기록물철 칸이 없다. 문서마다 어느 철인지 적혀 있지 않아, 모든 문서는 제목과 부서명을 읽고 분류기준표에서 철을 골라야 한다.\n둘째, 문서목록의 부서명 65개 중 32개는 분류기준표에 없다. 이 부서들의 문서가 535,148건으로 전체의 49.7%다. 제주·김해 운영단·시설단과 지방공항 17개 부서(522,546건)에는 김포·청주 기준표를 대신 적용했다. 양양공항과 포항경주공항은 기준표에 자체 항목이 조금 있다(1건, 9건). 없어진 부서 9개(12,185건)는 현재 부서로 추정해 연결했고 직제규정으로 확인해야 한다. 노동조합 등 6개(417건)는 기준표 적용 대상이 아니다.\n셋째, 비상계획실 기록물철 42행 중 34행은 단위업무명과 철명이 비어 있어 철을 고를 수 없다. 이 문서들은 단위업무까지만 배정한다.\n그래서 하네스는 정할 수 없는 문서에 철을 정하지 않고 미배정·검토필요·보류로 표시해 사람에게 넘긴다.\n출처: kac-shared/data/production.sqlite, dept_map.json, classification.json',
     setup(root, d) {
-      d.T = K.title(root, { kicker: '데이터 확인', title: '자료만으로는 기록물철을 정할 수 없는 문서가 있다' });
+      d.T = K.title(root, { kicker: '자료 확인', title: '자료만으로는 기록물철을 정할 수 없는 문서가 있다' });
+      const H = 'font-size:30px;font-weight:800;letter-spacing:-0.02em';
+      const SUB = 'font-family:var(--mono);font-size:21px;font-weight:500;letter-spacing:0;color:var(--ink-2);margin-left:18px';
       // A. 문서목록 칸
-      d.ah = K.at(root, '', { x: 120, y: 300 }, '문서 1,076,767건에는 어느 기록물철인지 적혀 있지 않다'); d.ah.style.cssText += ';font-size:30px;font-weight:800;letter-spacing:-0.02em';
+      d.ah = K.at(root, '', { x: 120, y: 290 }, '문서 1,076,767건에는 어느 기록물철인지 적혀 있지 않다'); d.ah.style.cssText += ';' + H;
       const cols = ['연도', '부서명', '문서구분', '등록일자', '문서번호', '제목', '수신발신처', '공개여부'];
-      d.cols = cols.map((c, i) => K.chip(root, c, 'id', { x: 120 + i * 146, y: 358, w: 136 }));
+      d.cols = cols.map((c, i) => K.chip(root, c, 'id', { x: 120 + i * 146, y: 344, w: 136 }));
       d.cols.forEach(c => { c.style.justifyContent = 'center'; c.style.fontFamily = 'var(--sans)'; c.style.fontWeight = '600'; });
       d.miss = ['단위업무', '기록물철'].map((c, i) => {
-        const e = K.at(root, '', { x: 1300 + i * 250, y: 358, w: 236, h: 40 }, c + ' ?');
+        const e = K.at(root, '', { x: 1300 + i * 250, y: 344, w: 236, h: 40 }, c + ' ?');
         e.style.cssText += ';border:2.5px dashed var(--warn);border-radius:8px;color:#965A00;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:var(--warn-soft)';
         return e;
       });
+      d.as = K.at(root, '', { x: 120, y: 398 }, '제목과 부서명을 읽고 분류기준표에서 골라야 한다'); d.as.style.cssText += ';font-size:23px;font-weight:600;color:var(--ink-2)';
       // B. 부서 대응
-      d.bh = K.at(root, '', { x: 120, y: 470 }, '생산현황 부서명 65개 중 32개는 자기 분류기준표가 없다'); d.bh.style.cssText += ';font-size:30px;font-weight:800;letter-spacing:-0.02em';
+      d.bh = K.at(root, '', { x: 120, y: 468 }, `문서의 절반은 분류기준표에 없는 부서가 만들었다<span style="${SUB}">부서 65개 중 32개 · 535,148건(49.7%)</span>`); d.bh.style.cssText += ';' + H;
       const segs = [
-        ['직접', 33, 541619, C.ink, '자기 기준표가 있음'],
-        ['준용', 17, 522546, C.warn, '김포·청주 기준표를 빌려 씀(제주·김해, 지방공항)'],
-        ['승계추정', 9, 12185, '#965A00', '없어진 부서 → 현 부서로 추정'],
-        ['대상외', 6, 417, C.mute, '노동조합 등'],
+        ['기준표에 있는 부서', 33, 541619, C.ink, ''],
+        ['다른 공항 기준표 적용', 17, 522546, C.warn, '제주·김해, 지방공항에 김포·청주 기준표를 적용'],
+        ['없어진 부서', 9, 12185, '#965A00', '현재 부서로 추정'],
+        ['적용 대상 아님', 6, 417, C.mute, '노동조합 등'],
       ];
-      d.bar = K.at(root, '', { x: 120, y: 530, w: 1680, h: 44 });
+      d.bar = K.at(root, '', { x: 120, y: 524, w: 1680, h: 44 });
       d.bar.style.display = 'flex'; d.bar.style.borderRadius = '6px'; d.bar.style.overflow = 'hidden'; d.bar.style.gap = '3px';
       segs.forEach(sg => { const e = h('div', '', d.bar); e.style.cssText = `background:${sg[3]};flex:none;width:${Math.max(4, sg[2] / 1076767 * 1680 - 3).toFixed(1)}px`; });
       d.leg = segs.map((sg, i) => {
-        const e = K.at(root, '', { x: 120 + [0, 840, 0, 840][i], y: 592 + (i >= 2 ? 50 : 0), w: 840 });
-        e.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${sg[3]};margin-right:10px"></span><b style="font-weight:800">${sg[0]}</b> <span class="mono" style="font-size:20px;margin:0 6px">${sg[1]}개 부서 · ${sg[2].toLocaleString('ko-KR')}건</span><span class="small" style="font-size:20px">${sg[4]}</span>`;
-        e.style.fontSize = '23px';
+        const e = K.at(root, '', { x: 120 + [0, 640, 0, 640][i], y: 584 + (i >= 2 ? 46 : 0), w: [620, 1040, 620, 1040][i] });
+        e.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${sg[3]};margin-right:10px"></span><b style="font-weight:800">${sg[0]}</b> <span class="mono" style="font-size:20px;margin:0 6px">${sg[1]}개 · ${sg[2].toLocaleString('ko-KR')}건</span><span class="small" style="font-size:20px">${sg[4]}</span>`;
+        e.style.fontSize = '23px'; e.style.whiteSpace = 'nowrap';
         return e;
       });
       // C. 비상계획실
-      d.ch = K.at(root, '', { x: 120, y: 730 }, '비상계획실 기록물철 42행 중 34행은 단위업무명·철명이 비어 있다'); d.ch.style.cssText += ';font-size:30px;font-weight:800;letter-spacing:-0.02em';
-      d.tbl = K.table(root, { x: 120, y: 786, w: 1040, cols: [{ label: 'ID', w: 110, cls: 'mono' }, { label: '소기능', w: 230 }, { label: '단위업무명', w: 300 }, { label: '기록물철명', w: 270 }, { label: '보존기간', w: 130 }],
-        rows: [['F0396', '비상대비관리', '충무계획관리', '충무계획관리', '30년'], ['F0397', '비상대비관리', '<span class="gap">공란</span>', '<span class="gap">공란</span>', '5년'], ['F0398', '비상대비관리', '<span class="gap">공란</span>', '<span class="gap">공란</span>', '10년']] });
+      d.ch = K.at(root, '', { x: 120, y: 706 }, '비상계획실 기록물철 42행 중 34행은 이름이 없어 철을 고를 수 없다'); d.ch.style.cssText += ';' + H;
+      d.tbl = K.table(root, { x: 120, y: 758, w: 1680, cols: [{ label: 'ID', w: 180, cls: 'mono' }, { label: '소기능', w: 360 }, { label: '단위업무명', w: 470 }, { label: '기록물철명', w: 470 }, { label: '보존기간', w: 200 }],
+        rows: [['F0396', '비상대비관리', '충무계획관리', '충무계획관리', '30년'], ['F0397', '비상대비관리', '<span class="gap">공란</span>', '<span class="gap">공란</span>', '5년']] });
       d.tbl.el.querySelectorAll('.td').forEach(td => { td.style.padding = '9px 14px'; td.style.fontSize = '22px'; });
       d.tbl.el.querySelectorAll('.gap').forEach(g => { g.style.cssText = 'display:inline-block;border:2px dashed var(--warn);border-radius:6px;padding:0 12px;color:#965A00;font-weight:700;background:var(--warn-soft)'; });
-      d.out = K.at(root, '', { x: 1240, y: 792, w: 560 });
-      d.out.innerHTML = '<div style="font-size:22px;font-weight:700;color:var(--blue)">그래서 하네스는</div><div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.35;margin-top:8px">확신이 없으면 정하지 않고 남긴다</div>';
-      d.outs = ['미배정', '사람 확인', '보류'].map((t, i) => K.chip(d.out, t, 'warn lg'));
-      const row = h('div', '', d.out); row.style.cssText = 'display:flex;gap:12px;margin-top:16px';
-      d.outs.forEach(c => row.appendChild(c));
+      // 결론: 세 항목 전체에 해당하므로 화면 아래 전체 폭에 둔다
+      d.out = K.at(root, '', { x: 120, y: 922, w: 1680, h: 64 });
+      d.out.style.cssText += ';display:flex;align-items:center;gap:22px;border-top:2.5px solid var(--ink);padding-top:14px;box-sizing:border-box';
+      d.out.innerHTML = '<span style="font-size:22px;font-weight:700;color:var(--blue);flex:none">그래서 하네스는</span><span style="font-size:30px;font-weight:800;letter-spacing:-0.02em;flex:none">정할 수 없는 문서는 철을 정하지 않고 사람에게 넘긴다</span>';
+      const row = h('div', '', d.out); row.style.cssText = 'display:flex;gap:12px;margin-left:auto;flex:none';
+      d.outs = ['미배정', '검토필요', '보류'].map(t => { const c = K.chip(row, t, 'warn lg'); return c; });
     },
     render(lt, d) {
       d.T.render(lt);
@@ -278,12 +282,13 @@
       d.cols.forEach((c, i) => K.pop(c, lt, 0.55 + i * 0.05));
       const w = K.wave(lt, 2.4);
       d.miss.forEach((m, i) => { K.pop(m, lt, 1.0 + i * 0.12, { from: 1.3 }); if (lt > 1.6) m.style.borderColor = `rgba(232,147,12,${(0.45 + 0.55 * w).toFixed(3)})`; });
-      K.rise(d.bh, lt, 1.2, { y: 12 });
-      K.wipe(d.bar, lt, 1.35, 1.1);
-      d.leg.forEach((e, i) => K.rise(e, lt, 1.7 + i * 0.08, { y: 8 }));
-      K.rise(d.ch, lt, 2.0, { y: 12 });
-      d.tbl.render(lt, 2.1, 0.1);
-      K.rise(d.out, lt, 2.6, { x: 20, y: 0 });
+      K.rise(d.as, lt, 1.15, { y: 8 });
+      K.rise(d.bh, lt, 1.3, { y: 12 });
+      K.wipe(d.bar, lt, 1.45, 1.1);
+      d.leg.forEach((e, i) => K.rise(e, lt, 1.8 + i * 0.08, { y: 8 }));
+      K.rise(d.ch, lt, 2.1, { y: 12 });
+      d.tbl.render(lt, 2.2, 0.1);
+      K.rise(d.out, lt, 2.6, { y: 12 });
       d.outs.forEach((c, i) => K.pop(c, lt, 2.8 + i * 0.1));
     },
   });
